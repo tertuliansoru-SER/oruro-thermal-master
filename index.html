@@ -1,18 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Oruro Thermal Master</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <h1>Oruro Thermal Master</h1>
-  <p>App funcionando 🚀</p>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTM 120H - Deep Control</title>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');
+<style>
+body{
+  margin:0;
+  background:#0a0f14;
+  color:#e5e5e5;
+  font-family:Arial, sans-serif;
+}
+.container{
+  padding:20px;
+}
+h1{
+  color:#00ff9d;
+  font-size:20px;
+}
+.timer{
+  font-size:48px;
+  font-weight:bold;
+  margin:20px 0;
+}
+.phase{
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:15px;
+  background:#111822;
+}
+input,button{
+  width:100%;
+  padding:12px;
+  margin:5px 0;
+  border:none;
+  border-radius:6px;
+  font-size:16px;
+}
+input{
+  background:#1a2430;
+  color:white;
+}
+button{
+  background:#00ff9d;
+  font-weight:bold;
+}
+.alert{
+  background:#3a0000;
+  color:#ff4d4d;
+  padding:10px;
+  margin-top:10px;
+  border-radius:6px;
+}
+.inching{
+  background:#332200;
+  color:#ffae00;
+  padding:10px;
+  margin-top:10px;
+  border-radius:6px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>OTM 120H - Deep Control</h1>
+
+<div class="timer" id="timer">00:00:00</div>
+<div class="phase" id="phase">Fase: Deshumidificación</div>
+
+<button onclick="start()">Iniciar</button>
+
+<h3>Ingreso Manual</h3>
+<input type="number" id="temp" placeholder="Temp Casco °C">
+<button onclick="saveData()">Registrar</button>
+
+<div id="internal"></div>
+<div id="rampAlert"></div>
+<div id="inchingAlert"></div>
+
+</div>
+
+<script>
+let startTime;
+let interval;
+let lastTemp = null;
+let lastTime = null;
+let lastInching = 0;
+
+function start(){
+  startTime = Date.now();
+  interval = setInterval(update,1000);
+}
+
+function update(){
+  let elapsed = Math.floor((Date.now()-startTime)/1000);
+  let h = Math.floor(elapsed/3600);
+  let m = Math.floor((elapsed%3600)/60);
+  let s = elapsed%60;
+  document.getElementById("timer").innerText =
+    String(h).padStart(2,'0')+":"+
+    String(m).padStart(2,'0')+":"+
+    String(s).padStart(2,'0');
+
+  updatePhase(h);
+  checkInching(elapsed);
+}
+
+function updatePhase(hours){
+  let phaseText;
+  if(hours<40) phaseText="Fase 1: Deshumidificación (5°C/h)";
+  else if(hours<80) phaseText="Fase 2: Química (8°C/h)";
+  else phaseText="Fase 3: Vitrificación (12°C/h)";
+  document.getElementById("phase").innerText=phaseText;
+}
+
+function getRampLimit(hours){
+  if(hours<40) return 5;
+  if(hours<80) return 8;
+  return 12;
+}
+
+function saveData(){
+  let temp = parseFloat(document.getElementById("temp").value);
+  if(!temp) return;
+
+  let internal = temp*3.5;
+  document.getElementById("internal").innerText =
+    "Temp Interna Estimada: "+internal.toFixed(1)+" °C";
+
+  let now = Date.now();
+  if(lastTemp!==null){
+    let hoursElapsed=(now-lastTime)/3600000;
+    let ramp=(temp-lastTemp)/hoursElapsed;
+    let currentHours=Math.floor((now-startTime)/3600000);
+    let limit=getRampLimit(currentHours);
+
+    if(ramp>limit){
+      document.getElementById("rampAlert").innerHTML =
+      "<div class='alert'>⚠ RAMPA EXCESIVA: "+
+      ramp.toFixed(1)+" °C/h (Límite "+limit+")</div>";
+    } else {
+      document.getElementById("rampAlert").innerHTML="";
     }
-  </script>
+  }
+
+  lastTemp=temp;
+  lastTime=now;
+}
+
+function checkInching(elapsed){
+  if(elapsed-lastInching>=900){
+    document.getElementById("inchingAlert").innerHTML =
+    "<div class='inching'>⚠ Realizar VIRADO 90°</div>";
+    lastInching=elapsed;
+  }
+}
+</script>
+
 </body>
 </html>
