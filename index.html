@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OTM 120H - Planta Oruro</title>
+    <title>OTM 120H Master</title>
     
-    <!-- Configuración para que parezca App -->
+    <!-- Configuración PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://img.icons8.com/fluency/240/fire-element.png">
@@ -26,133 +26,134 @@
             -webkit-tap-highlight-color: transparent;
         }
         .digital { font-family: 'JetBrains Mono', monospace; }
-        .glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(51, 65, 85, 0.5); }
+        .glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.5); }
         
-        /* Botón de acceso ultra-seguro */
-        #floating-admin-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+        /* Animación de emergencia para el botón */
+        @keyframes pulse-border {
+            0% { border-color: rgba(163, 230, 53, 0.3); }
+            50% { border-color: rgba(163, 230, 53, 1); }
+            100% { border-color: rgba(163, 230, 53, 0.3); }
         }
-
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); opacity: 0.5; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-        .ring-anim::before {
-            content: '';
-            position: absolute;
-            width: 100%; height: 100%;
-            background: var(--amber);
-            border-radius: 50%;
-            z-index: -1;
-            animation: pulse-ring 2s infinite;
-        }
+        .admin-trigger-active { animation: pulse-border 1.5s infinite; }
+        
+        /* Prevenir zoom en inputs en iPhone */
+        input[type="number"], input[type="password"], input[type="text"] { font-size: 16px !important; }
     </style>
 </head>
-<body class="min-h-screen p-4 pb-24">
+<body class="min-h-screen p-4 flex flex-col items-center">
 
-    <!-- BOTÓN FLOTANTE DE ACCESO (ESTO NO FALLA) -->
-    <button id="floating-admin-btn" onclick="openAdminModal()" class="w-16 h-16 bg-amber-500 rounded-full flex flex-col items-center justify-center text-black ring-anim active:scale-90 transition-transform">
-        <i data-lucide="key" size="24"></i>
-        <span class="text-[8px] font-black uppercase">Llave</span>
-    </button>
+    <!-- MODAL DE ACCESO (FORZADO) -->
+    <div id="pin-modal" class="fixed inset-0 bg-black/98 z-[99999] hidden flex flex-col items-center justify-center p-6 backdrop-blur-2xl">
+        <div class="glass p-8 rounded-[3rem] w-full max-w-sm text-center border-lime-500/50 shadow-[0_0_50px_rgba(163,230,53,0.2)]">
+            <h2 class="text-2xl font-black mb-2 uppercase italic text-white tracking-tighter">Acceso de Ingeniería</h2>
+            <p class="text-[10px] text-slate-500 font-bold mb-8 tracking-widest uppercase">Seguridad Planta Oruro</p>
+            
+            <input type="password" id="pin-input" 
+                class="w-full bg-slate-900 border-2 border-slate-700 p-5 rounded-2xl text-center text-4xl mb-6 text-lime-400 font-bold outline-none focus:border-lime-500 shadow-inner" 
+                placeholder="••••" 
+                inputmode="numeric">
 
-    <!-- MODAL DE PIN (Sencillo y Directo) -->
-    <div id="pin-modal" class="fixed inset-0 bg-black/98 z-[10000] hidden flex items-center justify-center p-6">
-        <div class="glass p-8 rounded-[2.5rem] w-full max-w-xs text-center">
-            <h2 class="text-xl font-black mb-6 uppercase text-white">Ingeniería Planta</h2>
-            <input type="password" id="pin-input" class="w-full bg-slate-900 border-2 border-slate-700 p-5 rounded-2xl text-center text-4xl mb-6 text-lime-400 font-bold outline-none focus:border-lime-500" placeholder="••••" inputmode="numeric">
             <div class="flex flex-col gap-3">
-                <button onclick="verifyPin()" class="w-full py-5 bg-lime-500 text-black font-black rounded-2xl uppercase shadow-lg">Entrar</button>
-                <button onclick="closeAdminModal()" class="w-full py-2 text-slate-500 text-[10px] font-bold uppercase">Cerrar</button>
+                <button id="pin-submit-btn" class="w-full py-6 bg-lime-500 text-black font-black rounded-2xl uppercase shadow-lg text-lg active:scale-95 transition-transform">Entrar al Sistema</button>
+                <button id="pin-cancel-btn" class="w-full py-2 text-slate-600 text-[10px] font-bold uppercase tracking-widest">Cerrar</button>
             </div>
         </div>
     </div>
 
-    <!-- CABECERA -->
-    <header class="w-full max-w-lg mx-auto flex justify-between items-center mb-6 bg-slate-900/80 p-5 rounded-3xl border border-slate-800 shadow-xl">
-        <div class="flex items-center gap-3">
-            <div id="led" class="w-3 h-3 rounded-full bg-red-600 shadow-[0_0_10px_red]"></div>
+    <!-- CABECERA CON BOTÓN DE ACCESO INTEGRADO (ÁREA GRANDE) -->
+    <header id="master-header" class="w-full max-w-lg bg-slate-900/80 p-5 rounded-3xl border border-slate-800 shadow-xl flex justify-between items-center mb-6 relative admin-trigger-active active:bg-slate-800 transition-colors">
+        <div class="flex items-center gap-4 pointer-events-none">
+            <div id="led" class="w-4 h-4 rounded-full bg-red-600 shadow-[0_0_10px_red]"></div>
             <div>
-                <h1 class="text-lg font-black italic tracking-tighter uppercase">OTM <span class="text-lime-400">120H CLOUD</span></h1>
-                <p id="role-display" class="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Modo Operador</p>
+                <h1 class="text-xl font-black italic tracking-tighter uppercase text-white">OTM <span class="text-lime-400">120H</span></h1>
+                <p id="role-display" class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Toque para Acceder</p>
             </div>
         </div>
-        <div class="text-right">
-            <p class="text-[7px] text-slate-600 font-bold uppercase">Estado</p>
-            <p id="sync-status" class="text-[9px] font-black text-blue-400 uppercase">Sincronizado</p>
+        <div class="p-3 bg-lime-500/10 rounded-xl border border-lime-500/20 pointer-events-none">
+            <i data-lucide="shield-check" class="text-lime-400" size="24"></i>
         </div>
     </header>
 
-    <main class="w-full max-w-lg mx-auto space-y-4">
+    <main class="w-full max-w-lg space-y-4">
         
-        <!-- DASHBOARD -->
-        <div class="glass rounded-[2.5rem] p-8 text-center relative overflow-hidden shadow-2xl">
-            <div class="absolute top-0 left-0 w-full h-1 bg-slate-950">
-                <div id="progress-bar" class="h-full bg-lime-500 transition-all duration-1000" style="width: 0%"></div>
+        <!-- DASHBOARD CENTRAL -->
+        <div class="glass rounded-[3rem] p-10 text-center relative overflow-hidden shadow-2xl border-b-8 border-b-slate-950">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-slate-950">
+                <div id="progress-bar" class="h-full bg-lime-500 transition-all duration-1000 shadow-[0_0_15px_#a3e635]" style="width: 0%"></div>
             </div>
-            <p class="text-[10px] text-slate-500 font-bold uppercase mb-2">Reloj de Curado</p>
-            <div id="clock" class="digital text-7xl font-bold text-white tracking-tighter tabular-nums mb-4">00:00:00</div>
-            <div id="phase-label" class="inline-block px-4 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[10px] font-bold uppercase text-slate-500 italic">Esperando Inicio</div>
             
-            <div class="mt-8 grid grid-cols-2 gap-4 border-t border-slate-800 pt-6">
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 italic">Cronómetro de Sincronización</p>
+            <div id="clock" class="digital text-7xl font-bold text-white tracking-tighter tabular-nums mb-4 drop-shadow-2xl">00:00:00</div>
+            
+            <div id="phase-label" class="inline-block px-6 py-2 rounded-full bg-slate-950 border border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Esperando Servidor...
+            </div>
+
+            <div class="mt-10 grid grid-cols-2 gap-4 border-t border-slate-800 pt-8">
                 <div>
-                    <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Interna (3.5x)</p>
-                    <p id="temp-int" class="text-3xl font-black text-lime-400">-- °C</p>
+                    <p class="text-[9px] text-slate-500 font-bold uppercase mb-1 italic">Interior (3.5x)</p>
+                    <p id="temp-int" class="text-4xl font-black text-lime-400 tabular-nums">-- °C</p>
                 </div>
                 <div class="border-l border-slate-800">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase mb-1">Presión Draft</p>
-                    <p id="press-val" class="text-3xl font-black text-blue-400">0.0</p>
+                    <p class="text-[9px] text-slate-500 font-bold uppercase mb-1 italic">Draft mmca</p>
+                    <p id="press-val" class="text-4xl font-black text-sky-400 tabular-nums">0.0</p>
                 </div>
             </div>
         </div>
 
-        <!-- ENTRADAS -->
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-slate-900 border border-slate-800 p-5 rounded-[2rem]">
-                <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-widest text-center">Temp. Casco</label>
-                <input type="number" id="field-shell" class="w-full bg-transparent text-4xl font-black text-white text-center focus:outline-none" placeholder="00" inputmode="decimal">
+        <!-- ALERTA DE GIRO (INCHING) -->
+        <div id="inching-alert" class="hidden bg-amber-500 text-black p-6 rounded-[2rem] flex justify-between items-center shadow-xl animate-bounce">
+            <div class="flex items-center gap-4">
+                <i data-lucide="rotate-cw" class="animate-spin text-black" size="28"></i>
+                <div class="font-black text-xs uppercase leading-tight">Giro 90° Necesario<br><span class="text-[10px] opacity-70">Compensar Deformación</span></div>
             </div>
-            <div class="bg-slate-900 border border-slate-800 p-5 rounded-[2rem]">
+            <button id="inching-done-btn" class="bg-black text-white px-6 py-3 rounded-xl text-xs font-black uppercase shadow-lg active:scale-90">Listo</button>
+        </div>
+
+        <!-- ENTRADA DE DATOS -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 border-2 border-slate-800 p-6 rounded-[2.5rem] focus-within:border-lime-500 transition-colors">
+                <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-widest text-center">Temp. Casco</label>
+                <input type="number" id="in-shell" class="w-full bg-transparent text-4xl font-black text-white text-center focus:outline-none" placeholder="00" inputmode="decimal">
+            </div>
+            <div class="bg-slate-900 border-2 border-slate-800 p-6 rounded-[2.5rem] focus-within:border-sky-500 transition-colors">
                 <label class="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-widest text-center">Draft</label>
-                <input type="number" id="field-press" step="0.1" class="w-full bg-transparent text-4xl font-black text-blue-400 text-center focus:outline-none" placeholder="0.0" inputmode="decimal">
+                <input type="number" id="in-press" step="0.1" class="w-full bg-transparent text-4xl font-black text-sky-400 text-center focus:outline-none" placeholder="0.0" inputmode="decimal">
             </div>
         </div>
 
-        <!-- CONTROLES -->
-        <div id="admin-panel" class="hidden flex flex-col gap-3">
-            <button id="ctrl-toggle" class="w-full py-6 rounded-[1.5rem] bg-lime-500 text-slate-950 font-black text-xl uppercase tracking-widest shadow-lg shadow-lime-500/20 active:scale-95 transition-transform">
-                Iniciar Proceso
+        <!-- CONTROLES DINÁMICOS -->
+        <div id="admin-panel" class="hidden flex flex-col gap-4">
+            <button id="ctrl-toggle" class="w-full py-8 rounded-[2rem] bg-lime-500 text-slate-950 font-black text-2xl uppercase tracking-widest shadow-xl shadow-lime-500/20 active:scale-95 transition-transform">
+                Iniciar Curado
             </button>
-            <button onclick="sendData()" class="w-full py-4 rounded-2xl bg-blue-600 text-white font-black text-sm uppercase flex items-center justify-center gap-2">
-                <i data-lucide="save"></i> Guardar Registro
+            <button id="save-admin" class="w-full py-5 rounded-2xl bg-blue-600 text-white font-black text-sm uppercase flex items-center justify-center gap-3 active:scale-95">
+                <i data-lucide="save"></i> Guardar y Sincronizar
             </button>
         </div>
 
         <div id="op-panel" class="w-full">
-            <button onclick="sendData()" class="w-full py-7 rounded-[2rem] bg-blue-600 text-white font-black text-xl uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
+            <button id="save-op" class="w-full py-8 rounded-[2.5rem] bg-blue-600 text-white font-black text-xl uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
                 Registrar Lectura
             </button>
         </div>
 
         <!-- BITÁCORA -->
-        <div class="bg-slate-900 border border-slate-800 rounded-[2rem] flex flex-col h-72 overflow-hidden">
-            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                <h3 class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Historial Sincronizado</h3>
-                <i data-lucide="cloud-check" class="text-lime-500" size="14"></i>
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] flex flex-col h-72 overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bitácora en Tiempo Real</h3>
+                <div class="flex items-center gap-2">
+                    <span id="sync-dot" class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                </div>
             </div>
-            <div id="log-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/20">
-                <p class="text-center py-20 text-slate-800 text-[10px] font-bold uppercase">Cargando datos...</p>
+            <div id="log-list" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/20">
+                <p class="text-center py-20 text-slate-800 text-[10px] font-bold uppercase italic">Conectando con Oruro...</p>
             </div>
         </div>
 
-        <!-- RESET (SOLO ADMIN) -->
-        <div id="admin-reset" class="hidden pt-6 text-center">
-            <button onclick="resetAll()" class="text-[9px] font-bold text-red-900 uppercase tracking-[0.4em] hover:text-red-500 transition-colors">
-                Reiniciar Servidor
+        <div id="admin-reset-area" class="hidden pt-8 text-center">
+            <button id="hard-reset-btn" class="text-[10px] font-bold text-red-900 uppercase tracking-[0.5em] hover:text-red-500 transition-colors">
+                Reiniciar Servidor Cloud
             </button>
         </div>
 
@@ -178,43 +179,56 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-master-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-master-v3-final';
         
-        const PIN_MASTER = "ORURO2026";
-        let master = { isRunning: false, startTS: null, lastRot: 0 };
-        let elapsed = 0;
-        let isIngeniero = false;
+        const MASTER_PIN = "ORURO2026";
+        let masterState = { isRunning: false, startTS: null, lastRot: 0 };
+        let localElapsed = 0;
+        let engineerAccess = false;
 
-        // --- FUNCIONES GLOBALIZADAS PARA EL BOTÓN ---
-        window.openAdminModal = () => {
-            document.getElementById('pin-modal').classList.remove('hidden');
-            document.getElementById('pin-input').focus();
+        // --- MANEJO DE EVENTOS TÁCTILES "BLINDADOS" ---
+        const uiModal = document.getElementById('pin-modal');
+        const headerBtn = document.getElementById('master-header');
+        const pinInput = document.getElementById('pin-input');
+
+        const openAccess = (e) => {
+            e.preventDefault();
+            uiModal.classList.remove('hidden');
+            setTimeout(() => pinInput.focus(), 300);
         };
 
-        window.closeAdminModal = () => {
-            document.getElementById('pin-modal').classList.add('hidden');
-            document.getElementById('pin-input').value = '';
-        };
+        // Usamos pointerdown para que el celular reaccione al toque más rápido que al clic
+        headerBtn.addEventListener('pointerdown', openAccess);
+        
+        document.getElementById('pin-cancel-btn').addEventListener('pointerdown', () => {
+            uiModal.classList.add('hidden');
+            pinInput.value = '';
+        });
 
-        window.verifyPin = () => {
-            const pin = document.getElementById('pin-input').value;
-            if (pin === PIN_MASTER) {
-                isIngeniero = true;
-                document.getElementById('pin-modal').classList.add('hidden');
-                document.getElementById('admin-panel').classList.remove('hidden');
-                document.getElementById('admin-reset').classList.remove('hidden');
-                document.getElementById('op-panel').classList.add('hidden');
-                document.getElementById('floating-admin-btn').classList.add('bg-lime-500', 'text-black');
-                document.getElementById('role-display').innerText = "INGENIERO (ADMIN)";
-                document.getElementById('role-display').classList.replace('text-slate-500', 'text-lime-400');
-                refreshView();
+        document.getElementById('pin-submit-btn').addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            if (pinInput.value === MASTER_PIN) {
+                engineerAccess = true;
+                uiModal.classList.add('hidden');
+                enableAdminMode();
             } else {
                 alert("PIN INCORRECTO");
-                document.getElementById('pin-input').value = '';
+                pinInput.value = '';
             }
-        };
+        });
 
-        // --- INICIO Y SINCRONIZACIÓN ---
+        function enableAdminMode() {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            document.getElementById('op-panel').classList.add('hidden');
+            document.getElementById('admin-reset-area').classList.remove('hidden');
+            document.getElementById('role-display').innerText = "INGENIERO (ACCESO TOTAL)";
+            document.getElementById('role-display').classList.replace('text-slate-500', 'text-lime-400');
+            headerBtn.classList.remove('admin-trigger-active');
+            headerBtn.classList.add('border-lime-500', 'bg-lime-500/10');
+            sync(); // Refrescar vista
+        }
+
+        // --- LÓGICA DE SINCRONIZACIÓN ---
         const start = async () => {
             await signInAnonymously(auth);
             onAuthStateChanged(auth, (u) => { if(u) sync(); });
@@ -222,93 +236,120 @@
         };
 
         const sync = () => {
-            // Sincronizar Reloj y Estado
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'master'), (snap) => {
                 if(snap.exists()) {
-                    master = snap.data();
+                    masterState = snap.data();
                     refreshView();
-                } else if(isIngeniero) {
-                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), master);
+                } else if(engineerAccess) {
+                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), masterState);
                 }
             });
 
-            // Sincronizar Historial
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), orderBy('timestamp', 'desc'));
             onSnapshot(q, (snap) => {
                 const logs = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                updateLogs(logs);
+                drawLogs(logs);
             });
         };
 
         setInterval(() => {
-            if(master.isRunning && master.startTS) {
-                elapsed = Math.floor((Date.now() - master.startTS) / 1000);
-                updateClock();
+            if(masterState.isRunning && masterState.startTS) {
+                localElapsed = Math.floor((Date.now() - masterState.startTS) / 1000);
+                
+                const diffRot = localElapsed - (masterState.lastRot || 0);
+                const alertEl = document.getElementById('inching-alert');
+                if(diffRot >= 900) alertEl.classList.remove('hidden');
+                else alertEl.classList.add('hidden');
+                
+                updateVisuals();
             }
         }, 1000);
 
-        function updateClock() {
-            const h = Math.floor(elapsed/3600).toString().padStart(2,'0');
-            const m = Math.floor((elapsed%3600)/60).toString().padStart(2,'0');
-            const s = (elapsed%60).toString().padStart(2,'0');
-            document.getElementById('clock').innerText = `${h}:${m}:${s}`;
-            document.getElementById('progress-bar').style.width = Math.min((elapsed/432000)*100, 100) + '%';
+        function formatHMS(s) {
+            const h = Math.floor(s/3600).toString().padStart(2,'0');
+            const m = Math.floor((s%3600)/60).toString().padStart(2,'0');
+            const sc = (s%60).toString().padStart(2,'0');
+            return `${h}:${m}:${sc}`;
+        }
+
+        function updateVisuals() {
+            document.getElementById('clock').innerText = formatHMS(localElapsed);
+            const hrs = localElapsed / 3600;
+            document.getElementById('progress-bar').style.width = Math.min((hrs/120)*100, 100) + '%';
+            
+            if(masterState.isRunning) {
+                document.getElementById('phase-label').innerText = "HORNADA EN CURSO";
+                document.getElementById('phase-label').classList.replace('text-slate-400', 'text-lime-400');
+            }
         }
 
         function refreshView() {
             const btn = document.getElementById('ctrl-toggle');
             const led = document.getElementById('led');
-            const phase = document.getElementById('phase-label');
+            const syncDot = document.getElementById('sync-dot');
 
-            if(master.isRunning) {
-                led.className = "w-3 h-3 rounded-full bg-lime-500 shadow-[0_0_10px_lime] animate-pulse";
-                if(btn) btn.innerText = "Pausar Curado";
-                phase.innerText = "PROCESO ACTIVO";
-                phase.classList.replace('text-slate-500', 'text-lime-400');
+            if(masterState.isRunning) {
+                led.className = "w-4 h-4 rounded-full bg-lime-500 shadow-[0_0_15px_lime]";
+                syncDot.className = "w-2 h-2 rounded-full bg-lime-500 animate-pulse";
+                if(btn) btn.innerText = "Pausar Proceso";
+                if(btn) btn.className = "w-full py-8 rounded-[2rem] bg-slate-800 text-slate-500 font-black text-2xl uppercase tracking-widest border border-slate-700";
             } else {
-                led.className = "w-3 h-3 rounded-full bg-red-600 shadow-none";
+                led.className = "w-4 h-4 rounded-full bg-red-600 shadow-none";
+                syncDot.className = "w-2 h-2 rounded-full bg-red-500";
                 if(btn) btn.innerText = "Iniciar Curado";
-                phase.innerText = "SISTEMA EN ESPERA";
-                phase.classList.replace('text-lime-400', 'text-slate-500');
+                if(btn) btn.className = "w-full py-8 rounded-[2rem] bg-lime-500 text-slate-950 font-black text-2xl uppercase tracking-widest shadow-xl";
+                document.getElementById('phase-label').innerText = "SISTEMA EN ESPERA";
+                document.getElementById('phase-label').classList.replace('text-lime-400', 'text-slate-400');
             }
-            updateClock();
+            updateVisuals();
         }
 
-        // --- ACCIONES MAESTRAS ---
-        document.getElementById('ctrl-toggle').addEventListener('click', async () => {
-            if(!isIngeniero) return;
-            const newStatus = !master.isRunning;
-            const newTS = newStatus ? Date.now() - (elapsed * 1000) : master.startTS;
+        // --- EVENTOS DE CONTROL ---
+        document.getElementById('ctrl-toggle').addEventListener('pointerdown', async () => {
+            if(!engineerAccess) return;
+            const nuevoStatus = !masterState.isRunning;
+            const nuevoTS = nuevoStatus ? Date.now() - (localElapsed * 1000) : masterState.startTS;
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), {
-                isRunning: newStatus,
-                startTS: newTS,
-                lastRot: master.lastRot || 0
+                isRunning: nuevoStatus,
+                startTS: nuevoTS,
+                lastRot: masterState.lastRot || 0
             });
         });
 
-        window.sendData = async () => {
-            const shell = document.getElementById('field-shell').value;
-            const press = document.getElementById('field-press').value;
+        const handleSave = async () => {
+            const shell = document.getElementById('in-shell').value;
+            const press = document.getElementById('in-press').value;
             if(!shell) return;
-            
             const tShell = parseFloat(shell);
             const tInt = Math.round(tShell * 3.5);
 
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), {
                 timestamp: Date.now(),
-                elapsed,
+                elapsed: localElapsed,
                 shell: tShell,
                 internal: tInt,
                 press: press || '0.0'
             });
 
-            document.getElementById('field-shell').value = '';
-            document.getElementById('field-press').value = '';
+            document.getElementById('in-shell').value = '';
+            document.getElementById('in-press').value = '';
         };
 
-        function updateLogs(logs) {
-            const container = document.getElementById('log-container');
-            if(!logs.length) { container.innerHTML = '<p class="text-center py-20 text-slate-800 text-[10px] font-bold">Sin datos aún</p>'; return; }
+        document.getElementById('save-admin').addEventListener('pointerdown', handleSave);
+        document.getElementById('save-op').addEventListener('pointerdown', handleSave);
+
+        document.getElementById('inching-done-btn').addEventListener('pointerdown', async () => {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { ...masterState, lastRot: localElapsed });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), {
+                timestamp: Date.now(),
+                elapsed: localElapsed,
+                type: 'ROTACIÓN'
+            });
+        });
+
+        function drawLogs(logs) {
+            const container = document.getElementById('log-list');
+            if(!logs.length) { container.innerHTML = '<p class="text-center py-20 text-slate-800 text-[10px] font-bold uppercase tracking-widest italic">Base de Datos Vacía</p>'; return; }
             
             const last = logs.find(l => !l.type);
             if(last) {
@@ -316,26 +357,13 @@
                 document.getElementById('press-val').innerText = last.press;
             }
 
-            container.innerHTML = logs.map(l => `
-                <div class="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div class="text-[8px] text-slate-500 font-bold uppercase tabular-nums">T+ ${Math.floor(l.elapsed/3600)}h</div>
-                    <div class="text-right">
-                        <div class="text-white font-black text-xl">${l.shell}°C <span class="text-[9px] text-slate-600 font-normal italic">Casco</span></div>
-                        <div class="text-lime-400 font-bold text-xs uppercase">${l.internal}°C Interna</div>
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = logs.map(l => {
+                if(l.type) return `<div class="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex justify-between items-center text-[10px] italic text-amber-500 font-bold uppercase"><span>T+${Math.floor(l.elapsed/3600)}h</span><span>Giro 90° OK</span></div>`;
+                return `<div class="p-5 bg-slate-950 border border-slate-800 rounded-[1.5rem] flex justify-between items-center shadow-inner"><div><p class="text-[10px] text-slate-600 font-mono">T+${Math.floor(l.elapsed/3600)}h</p><p class="text-sky-400 font-black text-xs">${l.press} mmca</p></div><div class="text-right"><p class="text-2xl font-black text-white leading-none">${l.shell}°C</p><p class="text-[9px] text-slate-600 font-bold uppercase mt-1">Carcasa</p></div></div>`;
+            }).join('');
         }
 
-        window.resetAll = async () => {
-            if(!confirm("BORRAR TODO?")) return;
+        document.getElementById('hard-reset-btn').addEventListener('pointerdown', async () => {
+            if(!confirm("¿REINICIAR SERVIDOR? SE BORRARÁN TODOS LOS DATOS.")) return;
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { isRunning: false, startTS: null, lastRot: 0 });
-            const snaps = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'logs'));
-            for(const d of snaps.docs) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'logs', d.id)); }
-            location.reload();
-        };
-
-        start();
-    </script>
-</body>
-</html>
+  
