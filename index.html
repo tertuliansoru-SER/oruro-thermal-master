@@ -3,369 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Oruro Thermal Master - Ingeniería</title>
-    
-    <!-- Librerías Externas -->
+    <title>Oruro Thermal Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <!-- Cargamos iconos de una forma más estable -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;600;800&display=swap');
-        
-        :root {
-            --bg-deep: #020617;
-            --panel: #0f172a;
-            --neon-green: #a3e635;
-            --neon-amber: #fbbf24;
-            --neon-blue: #38bdf8;
-            --neon-red: #ef4444;
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-deep); 
-            color: #f1f5f9;
-            overscroll-behavior: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;900&display=swap');
+        :root { --bg: #020617; --lime: #a3e635; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #f1f5f9; touch-action: manipulation; }
         .digital { font-family: 'JetBrains Mono', monospace; }
-
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(51, 65, 85, 0.5);
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-        }
-
-        .btn-industrial {
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            border-bottom: 4px solid rgba(0,0,0,0.4);
-        }
-        .btn-industrial:active {
-            transform: translateY(2px);
-            border-bottom-width: 0px;
-        }
-
-        /* Animaciones de Alerta */
-        @keyframes alert-glow {
-            0%, 100% { box-shadow: 0 0 5px var(--neon-red); border-color: var(--neon-red); }
-            50% { box-shadow: 0 0 20px var(--neon-red); border-color: #f87171; }
-        }
-        .alert-active { animation: alert-glow 1.5s infinite; }
-
-        @keyframes pulse-amber {
-            0%, 100% { background-color: rgba(251, 191, 36, 0.05); }
-            50% { background-color: rgba(251, 191, 36, 0.2); }
-        }
-        .inching-pulse { animation: pulse-amber 1s infinite; }
-
-        /* Scrollbar Personalizada */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-deep); }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(51, 65, 85, 0.5); }
+        .btn-press:active { transform: scale(0.95); opacity: 0.8; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4 pb-12">
+<body class="min-h-screen flex flex-col items-center p-4">
 
-    <!-- CABECERA DE ESTADO -->
-    <header class="w-full max-w-5xl flex flex-col md:flex-row justify-between items-center mb-6 gap-4 bg-slate-900/50 p-5 rounded-3xl border border-slate-800">
-        <div class="flex items-center gap-4">
-            <div id="led-status" class="w-4 h-4 rounded-full bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]"></div>
+    <!-- CABECERA -->
+    <header class="w-full max-w-lg flex justify-between items-center mb-4 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-2xl">
+        <div class="flex items-center gap-3">
+            <div id="led" class="w-3 h-3 rounded-full bg-red-600"></div>
             <div>
-                <h1 class="text-xl font-black italic tracking-tighter uppercase">ORURO <span class="text-lime-400">THERMAL MASTER</span></h1>
-                <p class="text-[9px] font-bold text-slate-500 uppercase tracking-[0.4em]">Protocolo Ingeniería de Campo v1.0</p>
+                <h1 class="text-sm font-black italic uppercase">ORURO <span class="text-lime-400">THERMAL</span></h1>
+                <p class="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Ingeniería de Campo</p>
             </div>
         </div>
-        <div class="flex gap-6 items-center">
-            <div class="text-right border-r border-slate-800 pr-6">
-                <p class="text-[9px] text-slate-500 font-bold uppercase">Altitud Operativa</p>
-                <p class="text-xs font-black text-slate-300">3,700 msnm</p>
-            </div>
-            <div class="text-right">
-                <p class="text-[9px] text-slate-500 font-bold uppercase">Presión ID Fan</p>
-                <p id="live-draft-val" class="text-xs font-black text-cyan-400">0.0 mmca</p>
-            </div>
+        <div class="text-right">
+            <p id="live-draft" class="text-xs font-black text-blue-400 digital">0.0 mmca</p>
         </div>
     </header>
 
-    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <main class="w-full max-w-lg space-y-4">
         
-        <!-- COLUMNA PRINCIPAL: DASHBOARD -->
-        <div class="lg:col-span-8 space-y-6">
+        <!-- DISPLAY PRINCIPAL -->
+        <div class="glass rounded-[2rem] p-6 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-slate-800">
+                <div id="bar" class="h-full bg-lime-500 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-2">Tiempo de Proceso</p>
+            <div id="clock" class="digital text-6xl font-bold text-white tracking-tighter mb-2">00:00:00</div>
+            <div id="phase" class="inline-block px-3 py-1 rounded-lg bg-slate-950 text-[10px] font-black uppercase text-slate-400 border border-slate-800">Sistema Detenido</div>
             
-            <!-- CRONÓMETRO Y FASES -->
-            <section class="glass-panel rounded-[2.5rem] p-8 relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-2 bg-slate-950">
-                    <div id="main-progress-bar" class="h-full bg-lime-500 transition-all duration-1000" style="width: 0%"></div>
+            <div class="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-slate-800">
+                <div>
+                    <p class="text-[8px] text-slate-500 font-bold uppercase">Interna Est.</p>
+                    <p id="t-int" class="text-2xl font-black text-lime-400">--°C</p>
                 </div>
-
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-                    <div class="flex-1">
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <i data-lucide="clock" class="w-3 h-3 text-lime-400"></i> Cronómetro del Proceso (Meta 120h)
-                        </p>
-                        <div id="main-timer" class="digital text-7xl md:text-8xl font-bold text-white leading-none tracking-tighter tabular-nums">00:00:00</div>
-                        <div id="phase-badge" class="mt-6 inline-flex px-5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            ESPERANDO ARRANQUE
-                        </div>
-                    </div>
-                    
-                    <div class="w-full md:w-56 bg-slate-950/40 p-5 rounded-3xl border border-slate-800/50">
-                        <p class="text-[9px] text-slate-500 font-bold uppercase mb-2">Temp. Interna Est. (3.5x)</p>
-                        <div id="internal-temp-est" class="text-4xl font-black text-lime-400 digital">-- °C</div>
-                        <div id="target-label" class="text-[8px] text-slate-600 font-bold mt-2 uppercase tracking-tighter">Meta: 150°C (Fase 1)</div>
-                    </div>
+                <div class="border-l border-slate-800">
+                    <p class="text-[8px] text-slate-500 font-bold uppercase">Meta Fase</p>
+                    <p id="t-target" class="text-2xl font-black text-slate-500">150°C</p>
                 </div>
-            </section>
-
-            <!-- INPUTS OPERATIVOS -->
-            <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Pirómetro Láser -->
-                <div class="glass-panel p-6 rounded-[2rem]">
-                    <div class="flex justify-between items-center mb-4">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                            <i data-lucide="thermometer-snowflake" class="w-4 h-4 text-lime-400"></i> Lectura Láser Casco
-                        </label>
-                        <span class="text-[9px] bg-slate-800 px-2 py-1 rounded text-slate-400 font-bold uppercase">Grados C</span>
-                    </div>
-                    <input type="number" id="in-shell-temp" class="w-full bg-transparent text-5xl font-black text-white focus:outline-none placeholder-slate-800" placeholder="000">
-                </div>
-                <!-- Draft / Presión -->
-                <div class="glass-panel p-6 rounded-[2rem]">
-                    <div class="flex justify-between items-center mb-4">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                            <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i> Presión de Cabeza
-                        </label>
-                        <span class="text-[9px] bg-slate-800 px-2 py-1 rounded text-slate-400 font-bold uppercase">mmca</span>
-                    </div>
-                    <input type="number" id="in-draft-press" step="0.1" class="w-full bg-transparent text-5xl font-black text-cyan-400 focus:outline-none placeholder-slate-800" placeholder="0.0">
-                </div>
-            </section>
-
-            <!-- REGISTRO Y NOTAS -->
-            <section class="flex flex-col md:flex-row gap-4">
-                <div class="flex-1 bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center">
-                    <i data-lucide="message-square" class="w-4 h-4 text-slate-600 mr-3"></i>
-                    <input type="text" id="in-obs" placeholder="Observaciones de campo (ej. humo, vapor, llama)" class="w-full bg-transparent text-sm text-slate-300 focus:outline-none placeholder-slate-700">
-                </div>
-                <button onclick="recordData()" class="btn-industrial bg-blue-600 hover:bg-blue-500 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3">
-                    <i data-lucide="check-circle"></i> Registrar Lectura
-                </button>
-            </section>
-
-        </div>
-
-        <!-- LATERAL: INCHING Y LOGS -->
-        <div class="lg:col-span-4 space-y-6">
-            
-            <!-- SISTEMA DE INCHING (VIRADO) -->
-            <section id="inching-module" class="glass-panel p-6 rounded-[2rem] border-amber-500/20">
-                <div class="flex justify-between items-start mb-5">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 bg-amber-500/10 rounded-xl">
-                            <i data-lucide="refresh-cw" class="w-5 h-5 text-amber-500"></i>
-                        </div>
-                        <h2 class="text-[11px] font-black uppercase text-slate-400 tracking-widest">Inching Control</h2>
-                    </div>
-                    <span id="inching-timer-display" class="digital text-2xl font-bold text-amber-500">15:00</span>
-                </div>
-                
-                <!-- Alerta Activa -->
-                <div id="inching-alert-ui" class="hidden">
-                    <div class="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl mb-4 text-center">
-                        <p class="text-[10px] font-black text-amber-500 uppercase animate-pulse tracking-tighter">⚠️ Rotación Mecánica de 90° Requerida</p>
-                        <p class="text-[8px] text-amber-600 mt-1 uppercase font-bold">Compensación de Deformación (Banana)</p>
-                    </div>
-                    <button onclick="confirmRotation()" class="w-full py-5 bg-amber-500 text-black font-black text-xs rounded-2xl btn-industrial uppercase tracking-widest">
-                        Virado Confirmado
-                    </button>
-                </div>
-                
-                <!-- Estado Espera -->
-                <div id="inching-wait-ui">
-                    <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden mb-3">
-                        <div id="inching-bar" class="h-full bg-amber-500" style="width: 100%"></div>
-                    </div>
-                    <p class="text-[9px] text-slate-600 font-bold uppercase text-center italic">Próximo virado programado en 15m</p>
-                </div>
-            </section>
-
-            <!-- BITÁCORA TÉCNICA -->
-            <section class="glass-panel rounded-[2rem] flex flex-col h-[420px] overflow-hidden">
-                <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
-                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="database" class="w-3 h-3 text-slate-600"></i> Log Operativo
-                    </h3>
-                    <button onclick="downloadCSV()" class="text-[9px] font-bold text-lime-400 hover:text-lime-300 flex items-center gap-1">
-                        <i data-lucide="download" class="w-3 h-3"></i> CSV
-                    </button>
-                </div>
-                <div id="log-display-list" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-950/30">
-                    <p class="text-center py-24 text-slate-800 italic text-[10px] font-bold uppercase tracking-widest">Sin registros de campo</p>
-                </div>
-            </section>
-
-            <!-- CONTROLES GLOBALES -->
-            <div class="grid grid-cols-2 gap-4">
-                <button id="main-toggle-btn" onclick="toggleClock()" class="btn-industrial py-6 rounded-2xl bg-lime-500 text-slate-950 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                    <i data-lucide="play" class="w-4 h-4"></i> Iniciar
-                </button>
-                <button onclick="resetApp()" class="py-6 rounded-2xl border border-slate-800 text-slate-600 font-bold text-[9px] uppercase tracking-widest hover:text-red-500 hover:border-red-900 transition-colors">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i> Borrar Todo
-                </button>
             </div>
         </div>
+
+        <!-- ALERTA DE GIRO (INCHING) -->
+        <div id="alert-rot" class="hidden bg-amber-500 text-slate-950 p-4 rounded-2xl flex justify-between items-center animate-pulse">
+            <div class="font-black text-xs uppercase leading-tight">Pendiente: Girar 90°<br><span class="opacity-70 text-[10px]">Evitar deformación</span></div>
+            <button onclick="confirmRotation()" class="bg-black text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase">Hecho</button>
+        </div>
+
+        <!-- ENTRADA DE DATOS -->
+        <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1">Láser Casco (°C)</label>
+                <input type="number" id="val-shell" class="w-full bg-transparent text-3xl font-black text-white focus:outline-none" placeholder="0">
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1">Presión (mmca)</label>
+                <input type="number" id="val-press" step="0.1" class="w-full bg-transparent text-3xl font-black text-blue-400 focus:outline-none" placeholder="0.0">
+            </div>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN -->
+        <div class="grid grid-cols-4 gap-3">
+            <button id="main-btn" onclick="handleMainAction()" class="btn-press col-span-3 py-5 rounded-2xl bg-lime-500 text-slate-950 font-black text-xl uppercase tracking-widest">Iniciar</button>
+            <button onclick="saveData()" class="btn-press bg-blue-600 text-white rounded-2xl flex items-center justify-center">
+                <i data-lucide="save"></i>
+            </button>
+        </div>
+
+        <!-- LOG / HISTORIAL -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden flex flex-col h-60 shadow-inner">
+            <div class="p-3 bg-slate-800/50 flex justify-between items-center">
+                <span class="text-[10px] font-black text-slate-400 uppercase">Registros de Campo</span>
+                <button onclick="exportData()" class="text-[10px] text-lime-400 font-bold uppercase">Exportar</button>
+            </div>
+            <div id="logs" class="flex-1 overflow-y-auto p-2 space-y-2 text-[10px]">
+                <p class="text-slate-700 text-center mt-10 italic">Sin datos registrados aún.</p>
+            </div>
+        </div>
+
+        <button onclick="fullReset()" class="w-full py-4 text-[9px] font-bold text-slate-800 uppercase tracking-[0.3em]">Reiniciar Todo el Sistema</button>
     </main>
 
-    <!-- OVERLAY DE ALERTA DE RAMPA -->
-    <div id="alert-modal" class="fixed inset-0 bg-red-950/80 backdrop-blur-md z-[200] hidden flex items-center justify-center p-6">
-        <div class="glass-panel border-red-500 border-2 p-10 rounded-[3rem] max-w-sm w-full text-center shadow-[0_0_60px_rgba(239,68,68,0.4)]">
-            <div class="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
-                <i data-lucide="alert-triangle" class="text-white w-10 h-10"></i>
-            </div>
-            <h2 class="text-3xl font-black text-red-500 mb-3 uppercase italic tracking-tighter">Rampa Crítica</h2>
-            <p id="alert-error-msg" class="text-sm text-slate-200 font-bold mb-8 leading-relaxed">El gradiente térmico supera los límites de seguridad para esta fase.</p>
-            <button onclick="closeModal()" class="w-full py-5 bg-white text-black font-black rounded-2xl uppercase text-xs tracking-[0.2em] hover:bg-slate-200 transition-colors">Confirmar Lectura</button>
-        </div>
-    </div>
-
     <script>
-        // --- CONSTANTES DE INGENIERÍA ---
-        const PROTOCOLO_FASES = [
-            { h: 40, name: "1. DESHUMIDIFICACIÓN", limit: 5, target: 150, color: "text-blue-400" },
-            { h: 80, name: "2. SECADO QUÍMICO", limit: 8, target: 350, color: "text-amber-400" },
-            { h: 120, name: "3. VITRIFICACIÓN", limit: 12, target: 850, color: "text-purple-400" }
+        // Configuración de Fases
+        const FASES = [
+            { h: 40, name: "Secado Físico", target: 150, color: "text-blue-400", limit: 5 },
+            { h: 80, name: "Secado Químico", target: 350, color: "text-amber-400", limit: 8 },
+            { h: 120, name: "Vitrificación", target: 850, color: "text-red-400", limit: 12 }
         ];
-        const MULTI_DT = 3.5; // Factor Casco -> Interno
-        const ROTATION_SECS = 900; // 15 minutos
 
         let appState = {
-            isActive: false,
+            isRunning: false,
+            seconds: 0,
             startTime: null,
-            heldSeconds: 0,
-            logData: [],
-            lastRotationTime: 0
+            lastRotation: 0,
+            history: []
         };
 
-        // --- MOTOR DE ARRANQUE ---
+        // Al cargar la página
         window.onload = () => {
-            lucide.createIcons();
-            const memory = localStorage.getItem('oruro_thermal_db_v1');
-            if (memory) {
-                appState = JSON.parse(memory);
-                renderLogs();
+            const saved = localStorage.getItem('otm_v2_state');
+            if (saved) {
+                appState = JSON.parse(saved);
+                if (appState.isRunning && appState.startTime) {
+                    // Recalcular tiempo transcurrido si estaba corriendo
+                    const now = Date.now();
+                    const diff = Math.floor((now - appState.startTime) / 1000);
+                    appState.seconds = diff;
+                }
             }
-            updateAppUI();
-            setInterval(mainLoop, 1000);
+            lucide.createIcons();
+            renderLogs();
+            setInterval(tick, 1000);
         };
 
-        function persist() {
-            localStorage.setItem('oruro_thermal_db_v1', JSON.stringify(appState));
+        function saveState() {
+            localStorage.setItem('otm_v2_state', JSON.stringify(appState));
         }
 
-        function toggleClock() {
-            if (!appState.isActive) {
-                appState.startTime = Date.now() - (appState.heldSeconds * 1000);
-                appState.isActive = true;
+        function handleMainAction() {
+            if (!appState.isRunning) {
+                // Iniciar
+                appState.isRunning = true;
+                appState.startTime = Date.now() - (appState.seconds * 1000);
             } else {
-                appState.heldSeconds = Math.floor((Date.now() - appState.startTime) / 1000);
-                appState.isActive = false;
+                // Pausar
+                appState.isRunning = false;
                 appState.startTime = null;
             }
-            updateAppUI();
-            persist();
+            saveState();
+            updateUI();
         }
 
-        function mainLoop() {
-            if (appState.isActive && appState.startTime) {
-                appState.heldSeconds = Math.floor((Date.now() - appState.startTime) / 1000);
-                updateAppUI();
+        function tick() {
+            if (appState.isRunning) {
+                appState.seconds = Math.floor((Date.now() - appState.startTime) / 1000);
+                
+                // Alerta de giro cada 15 min (900 seg)
+                if (appState.seconds - appState.lastRotation >= 900) {
+                    document.getElementById('alert-rot').classList.remove('hidden');
+                } else {
+                    document.getElementById('alert-rot').classList.add('hidden');
+                }
+                
+                updateUI();
             }
         }
 
-        function formatHMS(totalSeconds) {
-            const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-            const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-            const s = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${h}:${m}:${s}`;
+        function formatTime(s) {
+            const hrs = Math.floor(s / 3600).toString().padStart(2, '0');
+            const min = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+            const sec = (s % 60).toString().padStart(2, '0');
+            return `${hrs}:${min}:${sec}`;
         }
 
-        function updateAppUI() {
-            const currentSeconds = appState.heldSeconds;
-            const hoursTotal = currentSeconds / 3600;
+        function updateUI() {
+            const clockEl = document.getElementById('clock');
+            const btnEl = document.getElementById('main-btn');
+            const ledEl = document.getElementById('led');
+            const phaseEl = document.getElementById('phase');
+            const barEl = document.getElementById('bar');
 
-            // Timer y Progress
-            document.getElementById('main-timer').innerText = formatHMS(currentSeconds);
-            const progressPct = (hoursTotal / 120) * 100;
-            document.getElementById('main-progress-bar').style.width = Math.min(progressPct, 100) + '%';
+            clockEl.innerText = formatTime(appState.seconds);
 
-            // Fases
-            const currentPhase = PROTOCOLO_FASES.find(f => hoursTotal < f.h) || PROTOCOLO_FASES[2];
-            const badge = document.getElementById('phase-badge');
-            badge.innerText = currentPhase.name;
-            badge.className = `mt-6 inline-flex px-5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[10px] font-black uppercase tracking-widest ${currentPhase.color}`;
-            document.getElementById('target-label').innerText = `META FASE: ${currentPhase.target}°C`;
-
-            // Botón Principal
-            const led = document.getElementById('led-status');
-            const btn = document.getElementById('main-toggle-btn');
-            if (appState.isActive) {
-                led.className = "w-4 h-4 rounded-full bg-lime-500 shadow-[0_0_15px_#a3e635] alert-pulse";
-                btn.innerHTML = `<i data-lucide="pause" class="w-4 h-4"></i> Pausar`;
-                btn.className = "btn-industrial py-6 rounded-2xl bg-slate-800 text-slate-500 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-700";
-            } else {
-                led.className = "w-4 h-4 rounded-full bg-red-600 shadow-[0_0_15px_#ef4444]";
-                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> ${currentSeconds > 0 ? 'Continuar' : 'Iniciar'}`;
-                btn.className = "btn-industrial py-6 rounded-2xl bg-lime-500 text-slate-950 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2";
-            }
-
-            // Lógica Inching
-            const timeDiffRotation = currentSeconds - appState.lastRotationTime;
-            const remaining = Math.max(0, ROTATION_SECS - timeDiffRotation);
-            const displayTimer = document.getElementById('inching-timer-display');
-            const barInching = document.getElementById('inching-bar');
-            const waitUI = document.getElementById('inching-wait-ui');
-            const alertUI = document.getElementById('inching-alert-ui');
-            const card = document.getElementById('inching-module');
-
-            displayTimer.innerText = `${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}`;
-            barInching.style.width = (remaining / ROTATION_SECS) * 100 + '%';
-
-            if (appState.isActive && remaining <= 0) {
-                waitUI.classList.add('hidden');
-                alertUI.classList.remove('hidden');
-                card.classList.add('inching-pulse', 'border-amber-500');
-            } else {
-                waitUI.classList.remove('hidden');
-                alertUI.classList.add('hidden');
-                card.classList.remove('inching-pulse', 'border-amber-500');
-            }
-
-            lucide.createIcons();
-        }
-
-        // --- ACCIONES OPERATIVAS ---
-        function recordData() {
-            const shellInput = document.getElementById('in-shell-temp');
-            const draftInput = document.getElementById('in-draft-press');
-            const obsInput = document.getElementById('in-obs');
+            // Calcular fase
+            const hours = appState.seconds / 3600;
+            const currentPhase = FASES.find(f => hours < f.h) || FASES[2];
             
-            if (!shellInput.value) return;
+            if (appState.isRunning) {
+                btnEl.innerText = "Pausar";
+                btnEl.className = "btn-press col-span-3 py-5 rounded-2xl bg-slate-800 text-slate-500 font-black text-xl uppercase tracking-widest";
+                ledEl.className = "w-3 h-3 rounded-full bg-lime-500 shadow-[0_0_10px_#a3e635]";
+                phaseEl.innerText = currentPhase.name;
+                phaseEl.className = `inline-block px-3 py-1 rounded-lg bg-slate-950 text-[10px] font-black uppercase border border-slate-800 ${currentPhase.color}`;
+                document.getElementById('t-target').innerText = `${currentPhase.target}°C`;
+                barEl.style.width = Math.min((hours / 120) * 100, 100) + "%";
+            } else {
+                btnEl.innerText = "Iniciar";
+                btnEl.className = "btn-press col-span-3 py-5 rounded-2xl bg-lime-500 text-slate-950 font-black text-xl uppercase tracking-widest";
+                ledEl.className = "w-3 h-3 rounded-full bg-red-600";
+                phaseEl.innerText = "Sistema en Pausa";
+                phaseEl.className = "inline-block px-3 py-1 rounded-lg bg-slate-950 text-[10px] font-black uppercase text-slate-600 border border-slate-800";
+            }
+        }
 
-            const shellVal = parseFloat(shellInput.value);
-            const draftVal = parseFloat(draftInput.value || 0);
-            const currentSecs = appState.heldSeconds;
-            const currentHrs = currentSecs / 3600;
+        function confirmRotation() {
+            appState.lastRotation = appState.seconds;
+            appState.history.unshift({
+                time: formatTime(appState.seconds),
+                type: 'ROTACIÓN',
+                note: 'Giro 90° completado'
+            });
+            saveState();
+            renderLogs();
+        }
 
-            // Estimación Térmica
-            const internalEst = Math.round(shellVal * MULTI_DT);
-            document.getElementById('internal-temp-est').innerText = `${internalEst} °C`;
-            document.getElementById('live-draft-val').innerText = `${draftVal.toFixed(1)} mmca`;
+        function saveData() {
+            const shell = document.getElementById('val-shell').value;
+            const press = document.getElementById('val-press').value;
+            
+            if (!shell) return;
 
-            // Validación de Rampa Técnica
-            let rampAlert = null;
-            if (appState.logData.length > 0) {
-                const lastData = appState.logData.find(l => l.temp
+            const tShell = parseFloat(shell);
+            const tInt = Math.round(tShell * 3.5);
+
+            appState.history.unshift({
+                time: formatTime(appState.seconds),
+                type: 'LECTURA',
+                shell: tShell,
+                internal: tInt,
+                press: press || '0.0'
+            });
+
+            document.getElementById('t-int').innerText = `${tInt}°C`;
+            document.getElementById('live-draft').innerText = `${parseFloat(press || 0).toFixed(1)} mmca`;
+            document.getElementById('val-shell').value = '';
+            document.getElementById('val-press').value = '';
+
+            saveState();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logs');
+            if (appState.history.length === 0) return;
+
+            container.innerHTML = appState.history.map(item => {
+                if (item.type === 'ROTACIÓN') {
+                    return `<div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex justify-between items-center italic text-amber-500">
+                        <span>${item.time}</span>
+                        <span class="font-black text-[8px] uppercase">Giro Mecánico OK</span>
+                    </div>`;
+                }
+                return `<div class="p-3 bg-slate-950 border border-slate-800 rounded-xl flex justify-between items-center">
+                    <div>
+                        <p class="text-slate-500 font-bold">${item.time}</p>
+                        <p class="text-blue-500 font-black uppercase text-[8px]">${item.press} mmca</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-black text-white">${item.shell}°C</p>
+                        <p class="text-[7px] text-slate-600 font-bold uppercase">Casco Laser</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function exportData() {
+            let csv = "Hora,Tipo,Shell_C,Internal_C,Presion_mmca\n";
+            appState.history.forEach(i => {
+                csv += `${i.time},${i.type},${i.shell||''},${i.internal||''},${i.press||''}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `Oruro_Thermal_Log.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function fullReset() {
+            if (confirm("¿Seguro que quieres borrar todos los datos del proceso?")) {
+                localStorage.removeItem('otm_v2_state');
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
