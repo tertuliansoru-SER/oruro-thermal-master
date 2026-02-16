@@ -12,18 +12,9 @@ body{
   color:#e5e5e5;
   font-family:Arial, sans-serif;
 }
-.container{
-  padding:20px;
-}
-h1{
-  color:#00ff9d;
-  font-size:20px;
-}
-.timer{
-  font-size:48px;
-  font-weight:bold;
-  margin:20px 0;
-}
+.container{ padding:20px; }
+h1{ color:#00ff9d; font-size:20px; }
+.timer{ font-size:48px; font-weight:bold; margin:20px 0; }
 .phase{
   padding:10px;
   border-radius:8px;
@@ -38,14 +29,8 @@ input,button{
   border-radius:6px;
   font-size:16px;
 }
-input{
-  background:#1a2430;
-  color:white;
-}
-button{
-  background:#00ff9d;
-  font-weight:bold;
-}
+input{ background:#1a2430; color:white; }
+button{ background:#00ff9d; font-weight:bold; }
 .alert{
   background:#3a0000;
   color:#ff4d4d;
@@ -69,13 +54,13 @@ button{
 <h1>OTM 120H - Deep Control</h1>
 
 <div class="timer" id="timer">00:00:00</div>
-<div class="phase" id="phase">Fase: Deshumidificación</div>
+<div class="phase" id="phase"></div>
 
-<button onclick="start()">Iniciar</button>
+<button onclick="start()">Comenzar</button>
 
-<h3>Ingreso Manual</h3>
-<input type="number" id="temp" placeholder="Temp Casco °C">
-<button onclick="saveData()">Registrar</button>
+<h3>Entrada manual</h3>
+<input type="number" id="temp" placeholder="Temperatura del casco °C">
+<button onclick="saveData()">Registro</button>
 
 <div id="internal"></div>
 <div id="rampAlert"></div>
@@ -84,22 +69,30 @@ button{
 </div>
 
 <script>
-let startTime;
 let interval;
 let lastTemp = null;
 let lastTime = null;
-let lastInching = 0;
 
 function start(){
-  startTime = Date.now();
+  if(!localStorage.getItem("startTime")){
+    localStorage.setItem("startTime", Date.now());
+  }
+  runTimer();
+}
+
+function runTimer(){
   interval = setInterval(update,1000);
 }
 
 function update(){
+  let startTime = localStorage.getItem("startTime");
+  if(!startTime) return;
+
   let elapsed = Math.floor((Date.now()-startTime)/1000);
   let h = Math.floor(elapsed/3600);
   let m = Math.floor((elapsed%3600)/60);
   let s = elapsed%60;
+
   document.getElementById("timer").innerText =
     String(h).padStart(2,'0')+":"+
     String(m).padStart(2,'0')+":"+
@@ -132,10 +125,12 @@ function saveData(){
     "Temp Interna Estimada: "+internal.toFixed(1)+" °C";
 
   let now = Date.now();
+  let startTime = localStorage.getItem("startTime");
+  let currentHours = Math.floor((now-startTime)/3600000);
+
   if(lastTemp!==null){
     let hoursElapsed=(now-lastTime)/3600000;
     let ramp=(temp-lastTemp)/hoursElapsed;
-    let currentHours=Math.floor((now-startTime)/3600000);
     let limit=getRampLimit(currentHours);
 
     if(ramp>limit){
@@ -152,10 +147,18 @@ function saveData(){
 }
 
 function checkInching(elapsed){
+  let lastInching = localStorage.getItem("lastInching") || 0;
+
   if(elapsed-lastInching>=900){
     document.getElementById("inchingAlert").innerHTML =
     "<div class='inching'>⚠ Realizar VIRADO 90°</div>";
-    lastInching=elapsed;
+    localStorage.setItem("lastInching", elapsed);
+  }
+}
+
+window.onload=function(){
+  if(localStorage.getItem("startTime")){
+    runTimer();
   }
 }
 </script>
