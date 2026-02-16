@@ -1,378 +1,401 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OTM 120H - Oruro Master</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;900&display=swap');
-        * { -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Inter', sans-serif; background: #020617; color: white; overflow-x: hidden; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
-        .view.active { display: flex; }
-        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } }
-        @keyframes pulse-lime { 0%, 100% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.7); } 50% { box-shadow: 0 0 0 20px rgba(132, 204, 22, 0); } }
-        .led-red { animation: pulse-red 2s infinite; background: #ef4444; }
-        .led-lime { animation: pulse-lime 2s infinite; background: #84cc16; }
-        .data-table { font-size: 11px; width: 100%; border-collapse: collapse; }
-        .data-table th { background: #1e293b; padding: 10px; text-align: left; position: sticky; top: 0; }
-        .data-table td { padding: 10px; border-bottom: 1px solid #334155; }
-    </style>
-</head>
-<body>
+import React, { useState, useEffect, useRef } from 'react';
+import { LucideIcon, Play, Pause, Lock, RotateCw, ClipboardList, Database, Download, X, CheckCircle, AlertTriangle, UserCircle } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, getDocs, deleteDoc } from 'firebase/firestore';
 
-<!-- PANTALLA PRINCIPAL (OPERADOR) -->
-<div id="view-public" class="view active p-4">
-    <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4 shadow-2xl">
-        <div>
-            <h1 class="text-2xl font-black italic tracking-tighter leading-none">OTM <span class="text-lime-400">120H</span></h1>
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Planta Oruro • 3,700 msnm</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <div id="sync-status" class="text-[8px] font-black text-slate-600 uppercase">Sincronizando...</div>
-            <div id="led-main" class="w-4 h-4 rounded-full bg-slate-700"></div>
-        </div>
-    </header>
+// --- CONFIGURACIÓN FIREBASE ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-120h-v5';
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    <!-- ALERTA GIRO (INCHING) -->
-    <div id="alert-inching" class="hidden mb-4 p-5 bg-red-600 rounded-3xl border-2 border-red-400 text-center animate-pulse">
-        <div class="text-2xl mb-1">⚠️</div>
-        <div class="text-sm font-black uppercase mb-3">¡Girar Horno 90° Ahora!</div>
-        <button onclick="confirmarGiro()" class="w-full py-3 bg-white text-red-900 font-black uppercase rounded-xl active:scale-95 transition-all">Confirmar Giro</button>
-    </div>
+export default function App() {
+  // Estados de Navegación y Auth
+  const [view, setView] = useState('monitor');
+  const [user, setUser] = useState(null);
+  const [pin, setPin] = useState('');
+  
+  // Estados de la Hornada
+  const [masterState, setMasterState] = useState({ running: false, startTS: null, lastRot: 0 });
+  const [logs, setLogs] = useState([]);
+  const [operador, setOperador] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
 
-    <!-- MONITOR CENTRAL -->
-    <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 shadow-2xl relative">
-        <div id="phase-badge" class="absolute top-4 right-4 px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-500 uppercase">Fase 1</div>
-        <div id="clock-main" class="mono text-6xl font-bold text-white mb-2 tracking-tighter">00:00:00</div>
-        <div id="status-badge" class="inline-block px-3 py-1 bg-slate-800 text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest italic">Sistema Pausado</div>
-    </div>
+  // Formulario de Turno
+  const [formName, setFormName] = useState('');
+  const [formPunta, setFormPunta] = useState('1');
+  const [formHora, setFormHora] = useState('');
 
-    <!-- MÉTRICAS -->
-    <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 text-center">
-            <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Temp Interna</p>
-            <p id="val-temp" class="text-4xl font-black text-lime-400 mono">--°C</p>
-        </div>
-        <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 text-center">
-            <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Presión Draft</p>
-            <p id="val-press" class="text-4xl font-black text-sky-400 mono">--</p>
-        </div>
-    </div>
+  // Formulario de Lectura
+  const [readTemp, setReadTemp] = useState('');
+  const [readDraft, setReadDraft] = useState('');
 
-    <!-- TIMER GIRO -->
-    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 flex justify-between items-center">
-        <div>
-            <p class="text-[10px] font-bold text-orange-400 uppercase mb-1 italic">Próximo Giro 90°</p>
-            <p id="inch-timer" class="text-2xl font-black text-white mono">--:--</p>
-        </div>
-        <div class="text-right">
-            <p class="text-[9px] text-slate-600 uppercase">Último giro</p>
-            <p id="last-inch" class="text-xs font-bold text-slate-400">00:00:00</p>
-        </div>
-    </div>
-
-    <!-- SECCIÓN TURNO -->
-    <div id="section-turno" class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4">
-        <div id="form-turno">
-            <h3 class="text-xs font-bold text-blue-400 uppercase mb-3 italic tracking-widest">🔄 Cambio de Turno</h3>
-            <input type="text" id="in-nombre" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3 uppercase font-bold outline-none" placeholder="Nombre Operador">
-            <div class="grid grid-cols-2 gap-3 mb-3">
-                <input type="time" id="in-hora" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white font-bold">
-                <select id="in-punta" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white font-bold">
-                    <option value="1">1ra Punta</option><option value="2">2da Punta</option><option value="3">3ra Punta</option>
-                </select>
-            </div>
-            <button onclick="iniciarTurno()" class="w-full py-3 bg-blue-600 text-white font-black rounded-xl uppercase text-sm active:scale-95 transition-all">Iniciar Mi Turno</button>
-        </div>
-        <div id="display-turno" class="hidden">
-            <div class="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-4 mb-3 text-center shadow-lg">
-                <p id="txt-operador" class="text-xl font-black text-white uppercase tracking-tighter">--</p>
-                <p id="txt-info" class="text-[10px] text-blue-100 uppercase mt-1">Punta -- | Ingreso --</p>
-            </div>
-            <button onclick="cerrarTurno()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-xl text-[10px] uppercase">Finalizar Turno</button>
-        </div>
-    </div>
-
-    <!-- REGISTRO DE DATOS -->
-    <div id="section-registro" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-50 pointer-events-none transition-all duration-500">
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="bg-slate-950 p-4 rounded-3xl border border-slate-800">
-                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 italic">Temp Casco</label>
-                <input type="number" id="in-temp" class="w-full bg-transparent text-3xl font-black text-white outline-none mono" placeholder="0">
-            </div>
-            <div class="bg-slate-950 p-4 rounded-3xl border border-slate-800">
-                <label class="block text-[10px] font-bold text-sky-500 uppercase mb-1 italic">Draft mmca</label>
-                <input type="number" id="in-draft" step="0.1" class="w-full bg-transparent text-3xl font-black text-sky-400 outline-none mono" placeholder="0.0">
-            </div>
-        </div>
-        <button onclick="guardarLectura()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg shadow-xl active:scale-95">Guardar Lectura</button>
-    </div>
-
-    <div class="grid grid-cols-2 gap-3 mb-4">
-        <button onclick="showView('view-tabla')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700">📊 Ver Tabla</button>
-        <button onclick="descargarCSV()" class="py-4 bg-slate-800 text-green-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700">⬇️ Exportar CSV</button>
-    </div>
-
-    <button onclick="showAdmin()" class="w-full mt-6 py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-700">🔒 Ingeniería OTM</button>
-</div>
-
-<!-- VISTA TABLA -->
-<div id="view-tabla" class="view p-4 bg-slate-950">
-    <header class="flex justify-between items-center mb-4">
-        <h2 class="text-blue-400 font-black uppercase text-sm italic">Base de Datos</h2>
-        <button onclick="showView('view-public')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Cerrar</button>
-    </header>
-    <div class="bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl flex-1 overflow-y-auto">
-        <table class="data-table">
-            <thead><tr><th>Reloj</th><th>Op</th><th>Casco</th><th>Int</th><th>Draft</th></tr></thead>
-            <tbody id="table-body" class="mono"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- PANEL ADMIN -->
-<div id="view-admin" class="view p-6 bg-slate-950 items-center justify-center">
-    <div id="admin-login" class="w-full max-w-xs text-center">
-        <h2 class="text-3xl font-black italic mb-8 uppercase tracking-tighter">Acceso <span class="text-lime-400">Jefe</span></h2>
-        <input type="password" id="in-pin" class="w-full bg-slate-900 border-2 border-slate-700 p-6 rounded-[2rem] text-center text-4xl text-lime-400 font-bold mb-6 outline-none" placeholder="••••">
-        <button onclick="validarPin()" class="w-full py-5 bg-lime-500 text-black font-black rounded-2xl uppercase text-lg shadow-xl active:scale-95">Entrar</button>
-        <button onclick="showView('view-public')" class="mt-8 text-slate-500 font-bold uppercase text-[10px]">Cancelar</button>
-    </div>
-
-    <div id="admin-panel" class="hidden w-full h-full flex flex-col">
-        <header class="flex justify-between items-center mb-6 w-full">
-            <h2 class="text-lime-400 font-black italic uppercase text-sm">Control Maestro</h2>
-            <button onclick="showView('view-public')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Salir</button>
-        </header>
-        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-6 shadow-2xl w-full">
-            <div id="admin-clock" class="mono text-5xl font-bold text-lime-400 mb-1 tracking-tighter">00:00:00</div>
-            <p id="admin-status" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Sistema Pausado</p>
-        </div>
-        <button id="btn-master" onclick="toggleHornada()" class="w-full py-16 rounded-[3.5rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl active:scale-95 transition-all">INICIAR</button>
-        <button onclick="resetTotal()" class="w-full mt-24 py-3 text-red-900 font-bold text-[9px] uppercase tracking-[0.5em] opacity-30">Reset Total de Hornada</button>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // --- CONFIG ---
-    const firebaseConfig = JSON.parse(__firebase_config);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-120h-v4';
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    let state = { running: false, startTS: null, lastRot: 0 };
-    let logs = [];
-    let user = null;
-    let elapsed = 0;
-
-    // --- BOOTSTRAP ---
-    const init = async () => {
-        await signInAnonymously(auth);
-        onAuthStateChanged(auth, u => {
-            if(u) {
-                document.getElementById('sync-status').innerText = "ONLINE";
-                document.getElementById('sync-status').classList.replace('text-slate-600', 'text-lime-500');
-                sync();
-            }
-        });
+  // 1. Inicialización de Auth
+  useEffect(() => {
+    const initAuth = async () => {
+      await signInAnonymously(auth);
     };
+    initAuth();
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
+  }, []);
 
-    const sync = () => {
-        // Estado Maestro
-        onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'master'), (snap) => {
-            if(snap.exists()) {
-                state = snap.data();
-                updateUI();
-            } else {
-                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { running: false, startTS: null, lastRot: 0 });
-            }
-        });
+  // 2. Sincronización en Tiempo Real
+  useEffect(() => {
+    if (!user) return;
 
-        // Logs
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'registros'), orderBy('timestamp', 'desc'));
-        onSnapshot(q, (snap) => {
-            logs = snap.docs.map(d => d.data());
-            renderTable();
-            renderDashboard();
-        });
+    // Sincronizar Estado Maestro
+    const unsubMaster = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'master'), (snap) => {
+      if (snap.exists()) setMasterState(snap.data());
+      else setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { running: false, startTS: null, lastRot: 0 });
+    }, (err) => console.error("Error Master:", err));
+
+    // Sincronizar Logs
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'registros'));
+    const unsubLogs = onSnapshot(q, (snap) => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Ordenar en memoria (Regla 2)
+      setLogs(data.sort((a, b) => b.timestamp - a.timestamp));
+    }, (err) => console.error("Error Logs:", err));
+
+    return () => {
+      unsubMaster();
+      unsubLogs();
     };
+  }, [user]);
 
-    // --- MOTOR DE TIEMPO ---
-    setInterval(() => {
-        if(state.running && state.startTS) {
-            elapsed = Math.floor((Date.now() - state.startTS) / 1000);
-            const timeStr = formatHMS(elapsed);
-            document.getElementById('clock-main').innerText = timeStr;
-            document.getElementById('admin-clock').innerText = timeStr;
-
-            // Inching (15 min)
-            const diff = elapsed - (state.lastRot || 0);
-            const remain = Math.max(0, 900 - diff);
-            document.getElementById('inch-timer').innerText = formatMS(remain);
-            document.getElementById('alert-inching').classList.toggle('hidden', remain > 0);
-            document.getElementById('last-inch').innerText = formatHMS(state.lastRot || 0);
-
-            // Fases
-            const hrs = elapsed / 3600;
-            let f = "FASE 1: SECADO";
-            if(hrs > 80) f = "FASE 3: VITRIFICADO";
-            else if(hrs > 40) f = "FASE 2: QUÍMICO";
-            document.getElementById('phase-badge').innerText = f;
-        }
+  // 3. Reloj y Timer de Inching
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (masterState.running && masterState.startTS) {
+        const now = Date.now();
+        const diff = Math.floor((now - masterState.startTS) / 1000);
+        setElapsed(diff);
+      }
     }, 1000);
+    return () => clearInterval(timer);
+  }, [masterState.running, masterState.startTS]);
 
-    // --- ACCIONES (GLOBALES) ---
-    window.showView = (id) => {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        window.scrollTo(0,0);
-    };
+  // --- LÓGICA DE NEGOCIO ---
+  const formatHMS = (s) => {
+    const h = Math.floor(s / 3600).toString().padStart(2, '0');
+    const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+    const sc = (s % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${sc}`;
+  };
 
-    window.iniciarTurno = () => {
-        const nom = document.getElementById('in-nombre').value.trim();
-        if(!nom) return alert("Ingrese Nombre");
-        user = { 
-            nombre: nom.toUpperCase(), 
-            hora: document.getElementById('in-hora').value, 
-            punta: document.getElementById('in-punta').value 
-        };
-        document.getElementById('txt-operador').innerText = user.nombre;
-        document.getElementById('txt-info').innerText = `Punta ${user.punta} | Ingreso: ${user.hora}`;
-        document.getElementById('form-turno').classList.add('hidden');
-        document.getElementById('display-turno').classList.remove('hidden');
-        updateUI();
-    };
+  const formatMS = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sc = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sc}`;
+  };
 
-    window.cerrarTurno = () => {
-        user = null;
-        document.getElementById('form-turno').classList.remove('hidden');
-        document.getElementById('display-turno').classList.add('hidden');
-        updateUI();
-    };
+  const handleStartTurno = () => {
+    if (!formName) return;
+    setOperador({ nombre: formName.toUpperCase(), punta: formPunta, hora: formHora });
+  };
 
-    window.guardarLectura = async () => {
-        const t = document.getElementById('in-temp').value;
-        const d = document.getElementById('in-draft').value || 0;
-        if(!t) return alert("Ingrese Temp");
+  const handleSaveLog = async () => {
+    if (!readTemp || !operador) return;
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros'), {
+      timestamp: Date.now(),
+      elapsed: elapsed,
+      op: operador.nombre,
+      punta: operador.punta,
+      casco: parseFloat(readTemp),
+      int: Math.round(parseFloat(readTemp) * 3.5),
+      draft: parseFloat(readDraft || 0)
+    });
+    setReadTemp('');
+    setReadDraft('');
+  };
 
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros'), {
-            timestamp: Date.now(),
-            elapsed: elapsed,
-            op: user.nombre,
-            punta: user.punta,
-            casco: parseFloat(t),
-            int: Math.round(parseFloat(t) * 3.5),
-            draft: parseFloat(d)
-        });
+  const handleConfirmRotation = async () => {
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { ...masterState, lastRot: elapsed });
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros'), {
+        timestamp: Date.now(),
+        elapsed: elapsed,
+        op: "SISTEMA",
+        type: "GIRO"
+    });
+  };
 
-        document.getElementById('in-temp').value = '';
-        document.getElementById('in-draft').value = '';
-    };
-
-    window.confirmarGiro = async () => {
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { ...state, lastRot: elapsed });
-    };
-
-    window.showAdmin = () => {
-        document.getElementById('admin-login').classList.remove('hidden');
-        document.getElementById('admin-panel').classList.add('hidden');
-        showView('view-admin');
-    };
-
-    window.validarPin = () => {
-        if(document.getElementById('in-pin').value === 'ORURO2026') {
-            document.getElementById('admin-login').classList.add('hidden');
-            document.getElementById('admin-panel').classList.remove('hidden');
-        } else alert("PIN Erróneo");
-    };
-
-    window.toggleHornada = async () => {
-        const run = !state.running;
-        const data = { running: run };
-        if(run && !state.startTS) {
-            data.startTS = Date.now();
-            data.lastRot = 0;
-        }
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), data, { merge: true });
-    };
-
-    window.resetTotal = async () => {
-        if(!confirm("¿Borrar todo?")) return;
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { running: false, startTS: null, lastRot: 0 });
-        const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'registros'));
-        for(const doc of snap.docs) await deleteDoc(doc.ref);
-        location.reload();
-    };
-
-    // --- RENDERS ---
-    function updateUI() {
-        const led = document.getElementById('led-main');
-        const badge = document.getElementById('status-badge');
-        const btn = document.getElementById('btn-master');
-        const admStatus = document.getElementById('admin-status');
-
-        if(state.running) {
-            led.className = "w-4 h-4 rounded-full led-lime";
-            badge.innerText = "Hornada en Curso";
-            badge.className = "inline-block px-3 py-1 bg-lime-900/30 text-lime-400 rounded-full text-[10px] font-black uppercase tracking-widest";
-            if(btn) {
-                btn.innerText = "PAUSAR";
-                btn.className = "w-full py-16 rounded-[3.5rem] bg-zinc-800 text-zinc-400 font-black text-4xl uppercase";
-                admStatus.innerText = "Sistema en Marcha";
-                admStatus.className = "text-[10px] font-black text-lime-400 uppercase tracking-widest";
-            }
-        } else {
-            led.className = "w-4 h-4 rounded-full led-red";
-            badge.innerText = "Sistema Pausado";
-            badge.className = "inline-block px-3 py-1 bg-slate-800 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest";
-            if(btn) {
-                btn.innerText = "INICIAR";
-                btn.className = "w-full py-16 rounded-[3.5rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl";
-                admStatus.innerText = "Sistema Detenido";
-                admStatus.className = "text-[10px] font-black text-slate-500 uppercase tracking-widest";
-            }
-        }
-
-        const canReg = state.running && user;
-        document.getElementById('section-registro').style.opacity = canReg ? "1" : "0.5";
-        document.getElementById('section-registro').style.pointerEvents = canReg ? "auto" : "none";
+  const handleToggleHornada = async () => {
+    const isStarting = !masterState.running;
+    const update = { running: isStarting };
+    if (isStarting && !masterState.startTS) {
+      update.startTS = Date.now();
+      update.lastRot = 0;
     }
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), update, { merge: true });
+  };
 
-    function renderTable() {
-        const body = document.getElementById('table-body');
-        body.innerHTML = logs.map(l => `
-            <tr>
-                <td>${formatHMS(l.elapsed)}</td>
-                <td class="font-bold">${l.op}</td>
-                <td>${l.casco}°</td>
-                <td class="text-lime-400 font-bold">${l.int}°</td>
-                <td class="text-sky-400">${l.draft}</td>
-            </tr>
-        `).join('');
-    }
+  const handleReset = async () => {
+    if (!window.confirm("¿BORRAR TODO EL PROCESO?")) return;
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { running: false, startTS: null, lastRot: 0 });
+    const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'registros'));
+    for (const d of snap.docs) await deleteDoc(d.ref);
+    window.location.reload();
+  };
 
-    function renderDashboard() {
-        const last = logs[0];
-        if(last) {
-            document.getElementById('val-temp').innerText = last.int + "°C";
-            document.getElementById('val-press').innerText = last.draft.toFixed(1);
-        }
+  const handlePinSubmit = () => {
+    if (pin === 'ORURO2026') {
+      setView('admin');
+      setPin('');
+    } else {
+      setPin('');
+      alert("PIN INCORRECTO");
     }
+  };
 
-    // --- UTIL ---
-    function formatHMS(s) {
-        const h = Math.floor(s/3600).toString().padStart(2,'0');
-        const m = Math.floor((s%3600)/60).toString().padStart(2,'0');
-        const sc = (s%60).toString().padStart(2,'0');
-        return `${h}:${m}:${sc}`;
-    }
-    function formatMS(s) {
-        co
+  const downloadCSV = () => {
+    const h = "Reloj;Operador;Punta;Temp_Casco;Temp_Int;Draft\n";
+    const b = logs.filter(l => !l.type).map(l => `${formatHMS(l.elapsed)};${l.op};${l.punta};${l.casco};${l.int};${l.draft}`).join("\n");
+    const blob = new Blob(["\uFEFF" + h + b], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `OTM_Oruro_Data.csv`;
+    a.click();
+  };
+
+  // --- COMPONENTES DE VISTA ---
+
+  const MonitorView = () => {
+    const inchRemaining = Math.max(0, 900 - (elapsed - (masterState.lastRot || 0)));
+    const showInchingAlert = masterState.running && inchRemaining <= 0;
+
+    return (
+      <div className="flex flex-col gap-4 p-4 animate-in fade-in duration-500">
+        <header className="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-xl">
+          <div>
+            <h1 className="text-2xl font-black italic tracking-tighter">OTM <span className="text-lime-400">120H</span></h1>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Planta Oruro • Boliviana</p>
+          </div>
+          <div className={`w-3 h-3 rounded-full ${masterState.running ? 'bg-lime-500 shadow-[0_0_15px_#84cc16]' : 'bg-red-500 shadow-[0_0_15px_#ef4444]'}`}></div>
+        </header>
+
+        {showInchingAlert && (
+          <div className="bg-red-600 p-6 rounded-[2rem] border-4 border-red-400 text-center animate-bounce shadow-2xl">
+            <RotateCw className="mx-auto mb-2 text-white animate-spin" size={32} />
+            <h2 className="text-lg font-black uppercase mb-4">Girar Horno 90°</h2>
+            <button 
+              onClick={handleConfirmRotation}
+              className="w-full py-4 bg-white text-red-700 font-black rounded-2xl uppercase shadow-lg active:scale-95 transition-all"
+            >
+              Confirmar Giro Realizado
+            </button>
+          </div>
+        )}
+
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 h-1 bg-lime-500 transition-all duration-1000" style={{width: `${Math.min((elapsed/432000)*100, 100)}%`}}></div>
+            <div className="text-6xl font-black mono tracking-tighter mb-2">{formatHMS(elapsed)}</div>
+            <div className="px-4 py-1 bg-slate-950/50 rounded-full inline-block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                {masterState.running ? 'Hornada en curso' : 'Sistema en Pausa'}
+            </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 text-center">
+                <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Temp Interna</p>
+                <p className="text-4xl font-black text-lime-400 mono">{logs[0]?.int || '--'}°C</p>
+            </div>
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 text-center">
+                <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Inching En</p>
+                <p className="text-4xl font-black text-orange-400 mono">{formatMS(inchRemaining)}</p>
+            </div>
+        </div>
+
+        {!operador ? (
+            <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800">
+                <h3 className="text-xs font-black text-blue-400 uppercase mb-4 italic flex items-center gap-2">
+                    <UserCircle size={14} /> Control de Turno
+                </h3>
+                <input 
+                  type="text" 
+                  placeholder="NOMBRE OPERADOR"
+                  className="w-full bg-slate-950 border border-slate-700 p-4 rounded-2xl mb-3 text-white font-bold outline-none uppercase"
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
+                />
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <select 
+                      className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white font-bold"
+                      value={formPunta}
+                      onChange={e => setFormPunta(e.target.value)}
+                    >
+                        <option value="1">1ra Punta</option>
+                        <option value="2">2da Punta</option>
+                        <option value="3">3ra Punta</option>
+                    </select>
+                    <input 
+                        type="time" 
+                        className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white font-bold"
+                        value={formHora}
+                        onChange={e => setFormHora(e.target.value)}
+                    />
+                </div>
+                <button 
+                    onClick={handleStartTurno}
+                    className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl uppercase shadow-lg active:scale-95"
+                >
+                    Iniciar Mi Turno
+                </button>
+            </div>
+        ) : (
+            <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase italic">Operador Actual</p>
+                        <h3 className="text-xl font-black text-white">{operador.nombre}</h3>
+                        <p className="text-[10px] text-blue-400 font-bold uppercase">Punta {operador.punta} • {operador.hora}</p>
+                    </div>
+                    <button onClick={() => setOperador(null)} className="p-3 bg-slate-800 rounded-2xl text-slate-500">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className={`space-y-4 ${!masterState.running ? 'opacity-30 pointer-events-none' : ''}`}>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                            <label className="block text-[9px] text-slate-500 uppercase font-black mb-1">Temp Casco</label>
+                            <input 
+                                type="number" 
+                                className="w-full bg-transparent text-3xl font-black text-white outline-none mono"
+                                value={readTemp}
+                                onChange={e => setReadTemp(e.target.value)}
+                                placeholder="0"
+                            />
+                        </div>
+                        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                            <label className="block text-[9px] text-sky-500 uppercase font-black mb-1">Draft mmca</label>
+                            <input 
+                                type="number" 
+                                className="w-full bg-transparent text-3xl font-black text-sky-400 outline-none mono"
+                                value={readDraft}
+                                onChange={e => setReadDraft(e.target.value)}
+                                placeholder="0.0"
+                            />
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleSaveLog}
+                        className="w-full py-6 bg-lime-600 text-black font-black rounded-[2rem] uppercase text-lg shadow-xl active:scale-95"
+                    >
+                        Guardar Registro
+                    </button>
+                </div>
+            </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setView('tabla')} className="flex items-center justify-center gap-2 py-4 bg-slate-900 rounded-2xl border border-slate-800 text-blue-400 font-bold uppercase text-[10px]">
+                <Database size={14} /> Base de Datos
+            </button>
+            <button onClick={downloadCSV} className="flex items-center justify-center gap-2 py-4 bg-slate-900 rounded-2xl border border-slate-800 text-green-400 font-bold uppercase text-[10px]">
+                <Download size={14} /> Reporte CSV
+            </button>
+        </div>
+
+        <button onClick={() => setView('login')} className="mt-8 flex items-center justify-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-widest">
+            <Lock size={12} /> Ingeniería OTM
+        </button>
+      </div>
+    );
+  };
+
+  const TableView = () => (
+    <div className="p-4 bg-slate-950 min-h-screen animate-in slide-in-from-right duration-500">
+        <header className="flex justify-between items-center mb-6">
+            <h2 className="text-blue-400 font-black italic uppercase text-sm">Historial de Hornada</h2>
+            <button onClick={() => setView('monitor')} className="bg-slate-800 px-4 py-2 rounded-xl text-[10px] font-bold uppercase text-white">Cerrar</button>
+        </header>
+        <div className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+            <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-950 text-[10px] font-black text-slate-500 uppercase">
+                    <tr>
+                        <th className="p-4">Reloj</th>
+                        <th className="p-4">Op</th>
+                        <th className="p-4">Temp</th>
+                        <th className="p-4">Draft</th>
+                    </tr>
+                </thead>
+                <tbody className="text-xs mono divide-y divide-slate-800">
+                    {logs.map(l => (
+                        <tr key={l.id} className={l.type === 'GIRO' ? 'bg-orange-500/10' : ''}>
+                            <td className="p-4 text-slate-400">{formatHMS(l.elapsed)}</td>
+                            <td className="p-4 font-bold text-white uppercase">{l.op}</td>
+                            <td className="p-4 text-lime-400 font-bold">{l.int ? `${l.int}°` : 'GIRO'}</td>
+                            <td className="p-4 text-sky-400">{l.draft || '--'}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </div>
+  );
+
+  const LoginView = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-black animate-in zoom-in duration-300">
+        <h2 className="text-3xl font-black italic mb-12 uppercase tracking-tighter">Acceso <span className="text-lime-400">Jefe</span></h2>
+        <div className="w-full max-w-xs space-y-6">
+            <input 
+                type="password" 
+                className="w-full bg-slate-900 border-2 border-slate-800 p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none focus:border-lime-500 transition-all"
+                placeholder="••••"
+                value={pin}
+                onChange={e => setPin(e.target.value)}
+            />
+            <button 
+                onClick={handlePinSubmit}
+                className="w-full py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-lg shadow-2xl active:scale-95 transition-transform"
+            >
+                Entrar al Sistema
+            </button>
+            <button onClick={() => setView('monitor')} className="w-full text-slate-700 font-bold uppercase text-[10px] tracking-widest mt-4">
+                Regresar
+            </button>
+        </div>
+    </div>
+  );
+
+  const AdminView = () => (
+    <div className="p-6 bg-slate-950 min-h-screen animate-in fade-in duration-500">
+        <header className="flex justify-between items-center mb-10">
+            <h2 className="text-lime-400 font-black italic uppercase text-sm">Panel de Ingeniería</h2>
+            <button onClick={() => setView('monitor')} className="bg-red-900/20 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Salir</button>
+        </header>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-12 text-center mb-8 shadow-2xl">
+            <div className="text-6xl font-black text-white mono mb-2 tracking-tighter tabular-nums">{formatHMS(elapsed)}</div>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">{masterState.running ? 'HORNO OPERATIVO' : 'SISTEMA DETENIDO'}</p>
+        </div>
+
+        <button 
+            onClick={handleToggleHornada}
+            className={`w-full py-20 rounded-[4rem] flex flex-col items-center justify-center gap-4 transition-all active:scale-95 shadow-2xl ${masterState.running ? 'bg-slate-900 text-slate-500 border border-slate-800' : 'bg-lime-500 text-black shadow-lime-500/20'}`}
+        >
+            {masterState.running ? <Pause size={48} fill="currentColor" /> : <Play size={48} fill="currentColor" />}
+            <span className="text-4xl font-black uppercase tracking-tighter">{masterState.running ? 'PAUSAR' : 'INICIAR'}</span>
+        </button>
+
+        <div className="mt-auto pt-20">
+            <button onClick={handleReset} className="w-full py-4 text-red-900 font-bold text-[9px] uppercase tracking-[0.5em] opacity-30 hover:opacity-100 transition-opacity">
+                Formatear Historial de Hornada
+            </button>
+        </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#020617] text-white selection:bg-lime-500 selection:text-black">
+      {view === 'monitor' && <MonitorView />}
+      {view === 'tabla' && <TableView />}
+      {view === 'login' && <LoginView />}
+      {view === 'admin' && <AdminView />}
+    </div>
+  );
+}
