@@ -3,32 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OTM 120H - Oruro Master</title>
+    <title>OTM 120H - Master Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;700;900&display=swap');
-        :root { --bg: #020617; --lime: #a3e635; --amber: #fbbf24; --red: #ef4444; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+        :root { --bg: #020617; --lime: #a3e635; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; -webkit-tap-highlight-color: transparent; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
         .view.active { display: flex; }
+        .btn-p:active { transform: scale(0.96); opacity: 0.8; }
         .led-active { animation: pulse 2s infinite; background-color: var(--lime); }
         @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px var(--lime); } 50% { box-shadow: 0 0 20px var(--lime); } }
-        input, select { font-size: 16px !important; background: #000 !important; color: white !important; border: 1px solid #334155 !important; }
-        .btn-p:active { transform: scale(0.96); opacity: 0.8; }
     </style>
 </head>
 <body>
 
-    <!-- NAVEGACIÓN GLOBAL -->
+    <!-- NAVEGACIÓN INSTANTÁNEA -->
     <script>
         function f_nav(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            const target = document.getElementById(id);
-            if(target) target.classList.add('active');
+            document.getElementById(id).classList.add('active');
             window.scrollTo(0,0);
         }
-
         function f_pin_check() {
             const val = document.getElementById('a-pin').value;
             if(val === "ORURO2026") {
@@ -41,185 +38,183 @@
         }
     </script>
 
-    <!-- MONITOR PRINCIPAL -->
+    <!-- VISTA 1: MONITOR -->
     <div id="v-mon" class="view active p-4">
-        <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4 shadow-xl">
+        <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4">
             <div>
-                <h1 class="text-2xl font-black italic tracking-tighter uppercase leading-none">OTM <span class="text-lime-400">120H</span></h1>
+                <h1 class="text-2xl font-black italic uppercase leading-none">OTM <span class="text-lime-400">120H</span></h1>
                 <p id="net-status" class="text-[8px] font-bold text-slate-500 uppercase mt-1">Sincronizando...</p>
             </div>
             <div id="led" class="w-4 h-4 rounded-full bg-slate-700"></div>
         </header>
 
-        <!-- ALERTA DE GIRO -->
-        <div id="alt-inch" class="hidden mb-4 p-5 bg-amber-500 text-black rounded-3xl border-2 border-amber-400 text-center animate-bounce shadow-2xl">
+        <!-- ALERTA GIRO -->
+        <div id="alt-inch" class="hidden mb-4 p-5 bg-amber-500 text-black rounded-3xl text-center animate-bounce shadow-xl">
             <h2 class="text-xs font-black uppercase mb-1 italic">⚠️ Giro de 90° Requerido</h2>
             <div id="inch-timer" class="mono text-2xl font-black mb-2">00:00</div>
             <button onclick="window.f_giro()" class="w-full py-3 bg-black text-white font-black rounded-xl btn-p">Confirmar Giro</button>
         </div>
 
-        <!-- RELOJ MAESTRO -->
-        <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 shadow-2xl relative overflow-hidden">
+        <!-- RELOJ -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 relative overflow-hidden">
             <div id="bar" class="absolute top-0 left-0 h-1.5 bg-lime-500 transition-all duration-1000" style="width: 0%"></div>
             <div id="clk" class="mono text-6xl font-bold text-white mb-2 tracking-tighter tabular-nums">00:00:00</div>
-            <div id="ph" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Pausado</div>
+            <div id="ph" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic italic">Sistema en Espera</div>
         </div>
 
         <!-- MÉTRICAS -->
         <div class="grid grid-cols-2 gap-3 mb-4 text-center">
-            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
+            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800">
                 <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Interna (3.5x)</p>
                 <p id="t-int" class="text-4xl font-black text-lime-400 mono">--°C</p>
             </div>
-            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
+            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800">
                 <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Draft mmca</p>
                 <p id="t-dra" class="text-4xl font-black text-sky-400 mono">--</p>
             </div>
         </div>
 
         <!-- TURNO -->
-        <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4 shadow-xl">
+        <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4">
             <div id="f-tur">
-                <h3 class="text-xs font-bold text-blue-400 uppercase mb-3 italic tracking-widest">👤 Operador de Turno</h3>
-                <input type="text" id="i-nom" class="w-full rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold outline-none" placeholder="Nombre Completo">
+                <h3 class="text-xs font-bold text-blue-400 uppercase mb-3 italic">👤 Operador de Turno</h3>
+                <input type="text" id="i-nom" class="w-full rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold outline-none" placeholder="Nombre Operador">
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <input type="time" id="i-hor" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
                     <select id="i-pun" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
                         <option value="1">1ra Punta</option><option value="2">2da Punta</option><option value="3">3ra Punta</option>
                     </select>
                 </div>
-                <button onclick="window.f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p">Iniciar Turno</button>
+                <button onclick="window.f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p">Iniciar Sesión</button>
             </div>
             <div id="d-tur" class="hidden text-center">
-                <div class="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-4 mb-3 shadow-lg">
+                <div class="bg-blue-600/20 border border-blue-500/30 rounded-2xl p-4 mb-3">
                     <p id="o-nom" class="text-lg font-black text-white uppercase tracking-tighter">--</p>
-                    <p id="o-inf" class="text-[10px] text-blue-100 uppercase mt-1">--</p>
+                    <p id="o-inf" class="text-[10px] text-blue-400 uppercase mt-1">--</p>
                 </div>
-                <button onclick="window.f_tur_out()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-xl text-[10px] uppercase">Cambiar Operador</button>
+                <button onclick="window.f_tur_out()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-xl text-[10px] uppercase">Cambiar Turno</button>
             </div>
         </div>
 
         <!-- REGISTRO -->
-        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none transition-all shadow-2xl">
+        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none transition-all">
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1 italic uppercase">Carcasa</label>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Carcasa</label>
                     <input type="number" id="i-tem" class="w-full bg-transparent text-3xl font-black text-white text-center outline-none" placeholder="0">
                 </div>
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-sky-500 mb-1 italic uppercase">Draft</label>
+                    <label class="block text-[10px] font-bold text-sky-500 mb-1 uppercase">Draft</label>
                     <input type="number" id="i-dra" step="0.1" class="w-full bg-transparent text-3xl font-black text-sky-400 text-center outline-none" placeholder="0.0">
                 </div>
             </div>
-            <button id="btn-save-log" onclick="window.f_reg()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg btn-p">Guardar Lectura</button>
+            <button id="btn-save" onclick="window.f_reg()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg btn-p">Guardar Lectura</button>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <button onclick="f_nav('v-log')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">Bitácora</button>
+        <div class="grid grid-cols-2 gap-3">
+            <button onclick="f_nav('v-log')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">📊 Bitácora</button>
             <button onclick="f_nav('v-adm')" class="py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-800 btn-p">🔒 Admin</button>
         </div>
     </div>
 
-    <!-- PANTALLA: BITÁCORA -->
+    <!-- VISTA 2: ADMIN -->
+    <div id="v-adm" class="view p-6 items-center justify-center bg-black">
+        <!-- LOGIN -->
+        <div id="adm-l" class="w-full max-w-xs text-center space-y-6">
+            <h2 class="text-3xl font-black italic uppercase tracking-tighter">Panel <span class="text-lime-400">Jefe</span></h2>
+            <input type="password" id="a-pin" class="w-full p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none border border-slate-800" placeholder="••••" inputmode="numeric">
+            <button onclick="f_pin_check()" class="w-full py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-xl btn-p">Acceder</button>
+            <button onclick="f_nav('v-mon')" class="text-slate-600 font-bold uppercase text-[10px]">Cerrar</button>
+        </div>
+        <!-- CONTROLES -->
+        <div id="adm-p" class="hidden w-full h-full flex flex-col p-4">
+            <header class="flex justify-between items-center mb-6">
+                <h2 class="text-lime-400 font-black italic uppercase text-sm">Ingeniería OTM</h2>
+                <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-4 py-2 rounded-xl text-[10px] font-bold uppercase">Cerrar</button>
+            </header>
+            <div class="bg-slate-900 rounded-[2.5rem] p-10 text-center mb-10 border border-slate-800 shadow-2xl">
+                <div id="a-clk" class="mono text-5xl font-bold text-lime-400 mb-1 tracking-tighter">00:00:00</div>
+                <p id="a-st" class="text-[10px] font-black text-slate-500 uppercase">Sistema Detenido</p>
+            </div>
+            <button id="b-tgl" onclick="window.f_tgl()" class="w-full py-24 rounded-[4rem] bg-slate-800 text-slate-500 font-black text-4xl uppercase btn-p transition-all">CONECTANDO...</button>
+            <button onclick="window.f_rst()" class="w-full mt-20 py-3 text-red-900 font-bold text-[9px] uppercase tracking-[0.4em] opacity-40">Borrar Hornada Actual</button>
+        </div>
+    </div>
+
+    <!-- VISTA 3: LOGS -->
     <div id="v-log" class="view p-4 bg-slate-950">
         <header class="flex justify-between items-center mb-4">
-            <h2 class="text-blue-400 font-black uppercase text-sm italic tracking-widest">Base de Datos</h2>
+            <h2 class="text-blue-400 font-black uppercase text-sm italic">Base de Datos</h2>
             <button onclick="f_nav('v-mon')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Volver</button>
         </header>
-        <div class="bg-slate-900 rounded-3xl overflow-y-auto border border-slate-800 flex-1 shadow-2xl">
+        <div class="bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 flex-1 shadow-2xl">
             <table class="w-full text-xs text-left">
-                <thead class="bg-slate-950 text-slate-500 uppercase text-[9px]">
-                    <tr><th class="p-3">Reloj</th><th class="p-3">Op</th><th class="p-3">Int.</th><th class="p-3">Draft</th></tr>
+                <thead class="bg-black text-slate-500 uppercase text-[9px]">
+                    <tr><th class="p-3">Reloj</th><th class="p-3">Operador</th><th class="p-3">Interna</th><th class="p-3">Draft</th></tr>
                 </thead>
-                <tbody id="t-body" class="mono text-white/80"></tbody>
+                <tbody id="t-body" class="mono text-white/70"></tbody>
             </table>
         </div>
     </div>
 
-    <!-- PANTALLA: ADMIN -->
-    <div id="v-adm" class="view p-6 items-center justify-center bg-black">
-        <div id="adm-l" class="w-full max-w-xs text-center space-y-6">
-            <h2 class="text-3xl font-black italic uppercase tracking-tighter">Acceso <span class="text-lime-400">Jefe</span></h2>
-            <input type="password" id="a-pin" class="w-full p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none border border-slate-800" placeholder="••••" inputmode="numeric">
-            <button onclick="f_pin_check()" class="w-full py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-xl btn-p">Validar PIN</button>
-            <button onclick="f_nav('v-mon')" class="text-slate-600 font-bold uppercase text-[10px]">Cancelar</button>
-        </div>
-        <div id="adm-p" class="hidden w-full h-full flex flex-col p-4">
-            <header class="flex justify-between items-center mb-6">
-                <h2 class="text-lime-400 font-black italic uppercase text-sm tracking-widest">Panel de Ingeniería</h2>
-                <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Salir</button>
-            </header>
-            <div class="bg-slate-900 rounded-[2.5rem] p-12 text-center mb-12 shadow-2xl w-full border border-slate-800">
-                <div id="a-clk" class="mono text-5xl font-bold text-lime-400 mb-1 tracking-tighter">00:00:00</div>
-                <p id="a-st" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Pausado</p>
-            </div>
-            <button id="b-tgl" onclick="window.f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase btn-p">CONECTANDO...</button>
-            <button onclick="window.f_rst()" class="w-full mt-24 py-3 text-red-900 font-bold text-[9px] uppercase tracking-[0.5em] opacity-30">Reset Hornada</button>
-        </div>
-    </div>
-
+    <!-- NÚCLEO FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN E INICIALIZACIÓN
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-oru-vFinal-2026';
-        const app = initializeApp(firebaseConfig);
+        const cfg = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'otm-120h-final-2026';
+        const app = initializeApp(cfg);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let st = { running: false, startTS: null, lastRot: 0 };
-        let logs = [];
         let cur = null;
-        let isSyncing = false;
 
-        // FUNCIONES DE DATOS VINCULADAS AL WINDOW (PARA QUE ONCLICK FUNCIONE)
+        // ACCIONES VINCULADAS AL WINDOW
         window.f_tur_in = () => {
             const n = document.getElementById('i-nom').value.trim();
             if(!n) return;
             cur = { nombre: n.toUpperCase(), punta: document.getElementById('i-pun').value, time: document.getElementById('i-hor').value };
             document.getElementById('o-nom').innerText = cur.nombre;
-            document.getElementById('o-inf').innerText = `Punta ${cur.punta} | Ingreso: ${cur.time}`;
+            document.getElementById('o-inf').innerText = `PUNTA ${cur.punta} | HORA: ${cur.time}`;
             document.getElementById('f-tur').classList.add('hidden');
             document.getElementById('d-tur').classList.remove('hidden');
             updateUI();
         };
 
-        window.f_tur_out = () => { 
-            cur = null; 
-            document.getElementById('f-tur').classList.remove('hidden'); 
-            document.getElementById('d-tur').classList.add('hidden'); 
-            updateUI(); 
-        };
+        window.f_tur_out = () => { cur = null; document.getElementById('f-tur').classList.remove('hidden'); document.getElementById('d-tur').classList.add('hidden'); updateUI(); };
 
         window.f_tgl = async () => {
-            if(!auth.currentUser) return alert("Esperando conexión...");
+            if(!auth.currentUser) return alert("Error de conexión. Intente de nuevo.");
             const btn = document.getElementById('b-tgl');
-            const newState = !st.running;
+            const target = !st.running;
             
-            // Feedback visual inmediato
             btn.innerText = "PROCESANDO...";
-            btn.classList.add('opacity-50');
+            btn.disabled = true;
 
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { 
-                    running: newState, 
-                    startTS: (newState && !st.startTS) ? Date.now() : st.startTS,
+                // RUTA OBLIGATORIA REGLA 1
+                const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'master');
+                await setDoc(masterRef, {
+                    running: target,
+                    startTS: (target && !st.startTS) ? Date.now() : st.startTS,
                     lastRot: st.lastRot || 0
                 });
             } catch (e) {
-                console.error("Error al cambiar estado:", e);
-                alert("Error de base de datos");
+                console.error(e);
+                alert("Error de escritura en DB. Verifique internet.");
+            } finally {
+                btn.disabled = false;
             }
         };
 
         window.f_reg = async () => {
             const t = document.getElementById('i-tem').value;
             if(!t || !cur || !st.startTS) return;
-            const btn = document.getElementById('btn-save-log');
-            btn.disabled = true;
+            const b = document.getElementById('btn-save');
+            b.innerText = "GUARDANDO..."; b.disabled = true;
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), {
                     timestamp: Date.now(),
@@ -228,60 +223,65 @@
                     int: Math.round(parseFloat(t) * 3.5),
                     draft: document.getElementById('i-dra').value || 0
                 });
-                document.getElementById('i-tem').value = ''; 
-                document.getElementById('i-dra').value = '';
-            } finally {
-                btn.disabled = false;
-            }
+                document.getElementById('i-tem').value = ""; document.getElementById('i-dra').value = "";
+                b.innerText = "¡EXITO!";
+                setTimeout(() => { b.innerText = "GUARDAR LECTURA"; b.disabled = false; }, 1000);
+            } catch(e) { b.disabled = false; b.innerText = "ERROR"; }
         };
 
-        window.f_giro = async () => { 
+        window.f_giro = async () => {
             if(!st.startTS) return;
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { 
-                ...st, 
-                lastRot: Math.floor((Date.now() - st.startTS)/1000) 
-            }); 
+            const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'master');
+            await setDoc(masterRef, { ...st, lastRot: Math.floor((Date.now() - st.startTS)/1000) });
         };
 
         window.f_rst = async () => {
-            if(!confirm("¿Reset total de hornada?")) return;
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), { running: false, startTS: null, lastRot: 0 });
+            if(!confirm("¿CONFIRMA RESETEAR HORNADA? SE PERDERÁN LOS LOGS.")) return;
+            const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'master');
+            await setDoc(masterRef, { running: false, startTS: null, lastRot: 0 });
             const s = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'logs'));
             for(const d of s.docs) await deleteDoc(d.ref);
             location.reload();
         };
 
-        // SINCRONIZACIÓN Y LOOP
-        const sync = () => {
-            if(isSyncing) return;
-            isSyncing = true;
+        // SINCRONIZACIÓN
+        const startSync = () => {
+            // Master Doc
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'master'), 
+                (snap) => {
+                    if(snap.exists()) {
+                        st = snap.data();
+                        updateUI();
+                    } else {
+                        setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), st);
+                    }
+                }, 
+                (err) => console.error("Error Master Sync:", err)
+            );
 
-            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'master'), (snap) => {
-                if(snap.exists()) { 
-                    st = snap.data(); 
-                    updateUI(); 
-                } else { 
-                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master'), st); 
-                }
-            });
-
+            // Logs
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), orderBy('timestamp', 'desc'));
-            onSnapshot(q, (snap) => {
-                logs = snap.docs.map(d => d.data());
-                if(logs[0]) { 
-                    document.getElementById('t-int').innerText = logs[0].int + "°C"; 
-                    document.getElementById('t-dra').innerText = logs[0].draft; 
-                }
-                document.getElementById('t-body').innerHTML = logs.map(l => `
-                    <tr>
-                        <td class="p-3">${formatHMS(l.elapsed)}</td>
-                        <td class="p-3 font-bold uppercase">${l.op}</td>
-                        <td class="p-3 text-lime-400 font-bold">${l.int}°</td>
-                        <td class="p-3 text-sky-400 font-mono">${l.draft}</td>
-                    </tr>`).join('');
-            });
+            onSnapshot(q, 
+                (snap) => {
+                    const logs = snap.docs.map(d => d.data());
+                    if(logs[0]) {
+                        document.getElementById('t-int').innerText = logs[0].int + "°C";
+                        document.getElementById('t-dra').innerText = logs[0].draft;
+                    }
+                    document.getElementById('t-body').innerHTML = logs.map(l => `
+                        <tr>
+                            <td class="p-3">${formatHMS(l.elapsed)}</td>
+                            <td class="p-3 font-bold text-white">${l.op}</td>
+                            <td class="p-3 text-lime-400 font-bold">${l.int}°C</td>
+                            <td class="p-3 text-sky-400">${l.draft}</td>
+                        </tr>
+                    `).join('');
+                },
+                (err) => console.error("Error Logs Sync:", err)
+            );
         };
 
+        // LOOP DE RELOJ
         setInterval(() => {
             if(st.running && st.startTS) {
                 const s = Math.floor((Date.now() - st.startTS)/1000);
@@ -290,39 +290,40 @@
                 document.getElementById('bar').style.width = Math.min((s/432000)*100, 100) + '%';
                 
                 const rem = Math.max(0, 900 - (s - st.lastRot));
-                const timerEl = document.getElementById('inch-timer');
-                if (timerEl) timerEl.innerText = `${Math.floor(rem/60)}:${(rem%60).toString().padStart(2,'0')}`;
+                document.getElementById('inch-timer').innerText = `${Math.floor(rem/60)}:${(rem%60).toString().padStart(2,'0')}`;
                 document.getElementById('alt-inch').classList.toggle('hidden', rem > 0);
                 
                 const h = s/3600;
-                document.getElementById('ph').innerText = h > 80 ? "F3: VITRIFICADO" : (h > 40 ? "F2: QUÍMICO" : "F1: SECADO");
+                document.getElementById('ph').innerText = h > 80 ? "FASE 3: VITRIFICADO" : (h > 40 ? "FASE 2: REACCIÓN" : "FASE 1: SECADO");
             }
         }, 1000);
 
         function updateUI() {
-            const l = document.getElementById('led');
-            const b = document.getElementById('b-tgl');
-            b.classList.remove('opacity-50');
-
+            const btn = document.getElementById('b-tgl');
+            const led = document.getElementById('led');
+            btn.disabled = false;
+            
             if(st.running) {
-                l.className = "w-4 h-4 rounded-full led-active";
-                b.innerText = "PAUSAR"; 
-                b.className = "w-full py-20 rounded-[4rem] bg-zinc-800 text-zinc-500 font-black text-4xl uppercase btn-p";
-                document.getElementById('a-st').innerText = "MARCHA";
+                btn.innerText = "PAUSAR";
+                btn.className = "w-full py-24 rounded-[4rem] bg-zinc-900 text-zinc-600 font-black text-4xl uppercase btn-p";
+                led.className = "w-4 h-4 rounded-full led-active";
+                document.getElementById('a-st').innerText = "EN MARCHA";
             } else {
-                l.className = "w-4 h-4 rounded-full bg-slate-700";
-                b.innerText = "INICIAR"; 
-                b.className = "w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl btn-p";
-                document.getElementById('a-st').innerText = "PAUSADO";
+                btn.innerText = "INICIAR";
+                btn.className = "w-full py-24 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl btn-p";
+                led.className = "w-4 h-4 rounded-full bg-slate-700";
+                document.getElementById('a-st').innerText = "SISTEMA DETENIDO";
             }
-            const canReg = st.running && cur;
-            document.getElementById('sec-reg').style.opacity = canReg ? "1" : "0.3";
-            document.getElementById('sec-reg').style.pointerEvents = canReg ? "auto" : "none";
+
+            const active = st.running && cur;
+            const reg = document.getElementById('sec-reg');
+            reg.style.opacity = active ? "1" : "0.3";
+            reg.style.pointerEvents = active ? "auto" : "none";
         }
 
         const formatHMS = (s) => `${Math.floor(s/3600).toString().padStart(2,'0')}:${Math.floor((s%3600)/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
 
-        // AUTH Y ARRANQUE (REGLA 3)
+        // ARRANQUE REGLA 3
         const init = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -335,9 +336,9 @@
 
         onAuthStateChanged(auth, u => {
             if(u) {
-                document.getElementById('net-status').innerText = "ONLINE";
+                document.getElementById('net-status').innerText = "CONECTADO";
                 document.getElementById('net-status').classList.replace('text-slate-500', 'text-lime-500');
-                sync();
+                startSync();
             }
         });
 
