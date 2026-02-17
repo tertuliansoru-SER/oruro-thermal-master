@@ -2,13 +2,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
+// ✅ CREDENCIALES REALES DE otm-120h-oruro
 const firebaseConfig = {
-    apiKey: "AIzaSyB-vX_j0-XyZ1234567890-AbCdEfGhIjKlM",
-    authDomain: "quimica-oruro-pro.firebaseapp.com",
-    projectId: "quimica-oruro-pro",
-    storageBucket: "quimica-oruro-pro.firebasestorage.app",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890"
+    apiKey: "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
+    authDomain: "otm-120h-oruro.firebaseapp.com",
+    projectId: "otm-120h-oruro",
+    storageBucket: "otm-120h-oruro.firebasestorage.app",
+    messagingSenderId: "442199177770",
+    appId: "1:442199177770:web:21770802ebef01a34c2153"
 };
 
 const app = initializeApp(firebaseConfig);
