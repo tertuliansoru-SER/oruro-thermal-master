@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OTM 120H - Oruro Thermal Master</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;900&display=swap');
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background: #020617; color: white; overflow-x: hidden; padding-bottom: 40px; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
+        .view.active { display: flex; }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } }
+        @keyframes pulse-lime { 0%, 100% { box-shadow: 0 0 0 0 rgba(132, 204, 22, 0.7); } 50% { box-shadow: 0 0 0 20px rgba(132, 204, 22, 0); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .alert-critical { animation: blink 1s infinite; background: linear-gradient(90deg, #dc2626, #991b1b); }
+        .led-red { animation: pulse-red 2s infinite; }
+        .led-lime { animation: pulse-lime 2s infinite; }
+        .sync-spin { animation: spin 1s linear infinite; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .turno-badge { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+        .data-table { font-size: 11px; border-collapse: collapse; width: 100%; }
+        .data-table th { background: #1e293b; padding: 8px; text-align: left; font-weight: 700; text-transform: uppercase; position: sticky; top: 0; }
+        .data-table td { padding: 8px; border-bottom: 1px solid #334155; }
+        .data-table tr:hover { background: #1e293b; }
+        .connection-status { transition: all 0.3s; }
+        .connection-online { color: #22c55e; }
+        .connection-offline { color: #ef4444; }
+        .firma-diego { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(2, 6, 23, 0.95); border-top: 1px solid #1e293b; padding: 6px; text-align: center; z-index: 50; }
+        .firma-diego p { margin: 0; font-size: 9px; color: #475569; letter-spacing: 0.2em; font-family: 'JetBrains Mono', monospace; }
+        .firma-diego span { color: #64748b; font-weight: 600; }
+    </style>
+</head>
+<body>
+<!-- VISTA PÚBLICA -->
+<div id="view-public" class="view active p-4">
+    <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4">
+        <div>
+            <h1 class="text-2xl font-black italic tracking-tighter">OTM <span class="text-lime-400">120H</span></h1>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Planta Oruro • 3,700 msnm</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="sync-indicator" class="text-[10px] connection-status connection-offline">● OFFLINE</div>
+            <div id="led-main" class="w-4 h-4 rounded-full bg-red-600 led-red"></div>
+        </div>
+    </header>
+
+    <div id="alert-inching" class="hidden mb-4 p-4 alert-critical rounded-2xl border-2 border-red-500 text-center">
+        <div class="text-3xl mb-2">⚠️</div>
+        <div class="text-sm font-black uppercase tracking-widest mb-1">¡Girar Horno AHORA!</div>
+        <div class="text-xs text-red-200 mb-3">Detenido: <span id="stopped-time" class="mono font-bold">00:00</span></div>
+        <button onclick="confirmInching()" class="w-full py-3 bg-white text-red-900 font-black uppercase rounded-xl active:scale-95 transition-transform">✓ Confirmar Giro 90°</button>
+    </div>
+
+    <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 shadow-2xl relative">
+        <div id="phase-badge" class="absolute top-4 right-4 px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-500 uppercase">Fase 1</div>
+        <div id="clock-main" class="mono text-6xl font-bold text-white mb-2 tracking-tighter">00:00:00</div>
+        <div id="status-badge" class="inline-block px-3 py-1 bg-red-900/30 text-red-400 rounded-full text-[10px] font-black uppercase tracking-widest">Hornada Detenida</div>
+        <div class="text-[10px] text-slate-600 font-mono mt-2">Rampa máx: <span id="current-ramp" class="text-slate-400">--</span> °C/h</div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 text-center">
+            <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Temp Interior</p>
+            <p id="val-temp" class="text-4xl font-black text-lime-400 mono">--°C</p>
+        </div>
+        <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 text-center">
+            <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Presión Draft</p>
+            <p id="val-press" class="text-4xl font-black text-sky-400 mono">--</p>
+        </div>
+    </div>
+
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 flex justify-between items-center">
+        <div>
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Próximo Giro</p>
+            <p id="inch-timer" class="text-2xl font-black text-orange-400 mono">--:--</p>
+        </div>
+        <div class="text-right">
+            <p class="text-[9px] text-slate-600">Último giro</p>
+            <p id="last-inch" class="text-xs font-bold text-slate-400">--:--</p>
+        </div>
+    </div>
+
+    <div id="turno-section" class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4">
+        <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2"><span>🔄</span> Cambio de Turno</h3>
+        <div id="turno-form">
+            <div class="mb-3">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Tu Nombre Completo</label>
+                <input type="text" id="input-nombre-turno" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-500 uppercase" placeholder="Ej: JUAN PEREZ">
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Hora Ingreso</label>
+                    <input type="time" id="input-hora-turno" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Punta/Turno</label>
+                    <select id="input-punta-turno" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-blue-500">
+                        <option value="1">1ra Punta</option>
+                        <option value="2">2da Punta</option>
+                        <option value="3">3ra Punta</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="iniciarTurno()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl uppercase text-sm transition-all">Iniciar Mi Turno</button>
+        </div>
+        <div id="turno-activo" class="hidden">
+            <div class="turno-badge rounded-xl p-3 mb-3 text-center">
+                <p class="text-[10px] text-blue-200 uppercase tracking-widest mb-1">Turno Activo</p>
+                <p id="display-operador" class="text-lg font-black text-white uppercase">---</p>
+                <div class="flex justify-center gap-4 mt-2 text-[10px] text-blue-200">
+                    <span>Ingreso: <span id="display-hora" class="text-white font-mono">--:--</span></span>
+                    <span>|</span>
+                    <span id="display-punta" class="text-white">--</span>
+                </div>
+            </div>
+            <button onclick="cerrarTurno()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-lg text-xs uppercase">Cerrar Turno / Cambiar Operador</button>
+        </div>
+    </div>
+
+    <div id="registro-section" class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4 opacity-50 pointer-events-none transition-all">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-xs font-bold text-lime-400 uppercase tracking-widest">📝 Registrar Lectura</h3>
+            <span id="registro-status" class="text-[10px] bg-slate-800 text-slate-500 px-2 py-1 rounded">Inicie turno primero</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Temp. Casco (°C)</label>
+                <input type="number" id="input-temp" class="w-full bg-transparent text-2xl font-black text-white outline-none mono" placeholder="000">
+            </div>
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Draft (mmca)</label>
+                <input type="number" id="input-draft" step="0.1" class="w-full bg-transparent text-2xl font-black text-sky-400 outline-none mono" placeholder="0.0">
+            </div>
+        </div>
+        <button onclick="guardarRegistro()" id="btn-guardar" class="w-full py-3 bg-lime-600 hover:bg-lime-500 text-black font-black rounded-xl uppercase text-sm transition-all">Guardar Registro</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <button onclick="showView('view-tabla')" class="py-3 bg-slate-800 text-blue-400 font-bold rounded-xl uppercase text-xs border border-slate-700">📊 Ver Tabla</button>
+        <button onclick="descargarCSV()" class="py-3 bg-slate-800 text-green-400 font-bold rounded-xl uppercase text-xs border border-slate-700">⬇️ Descargar CSV</button>
+    </div>
+
+    <div class="flex-1 bg-slate-950 rounded-[2rem] p-4 border border-slate-900 overflow-hidden flex flex-col min-h-[150px]">
+        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Últimos Registros</h3>
+        <div id="log-container" class="flex-1 overflow-y-auto space-y-2 text-xs">
+            <p class="text-slate-700 text-center mt-10 uppercase font-bold tracking-widest italic">Sin registros</p>
+        </div>
+    </div>
+
+    <button onclick="showAdminLogin()" class="w-full mt-4 py-4 bg-slate-800 text-slate-400 font-black rounded-2xl uppercase tracking-widest text-xs border-2 border-slate-700 active:bg-slate-700 transition-all">🔒 Acceso Ingeniería</button>
+</div>
+
+<!-- VISTA TABLA -->
+<div id="view-tabla" class="view p-4 bg-slate-950">
+    <header class="flex justify-between items-center p-4 mb-4 bg-slate-900 rounded-2xl border border-slate-800">
+        <h2 class="text-blue-400 font-black uppercase tracking-wider text-sm">📊 Datos Completos</h2>
+        <div class="flex gap-2">
+            <button onclick="descargarCSV()" class="text-[10px] bg-green-900/30 text-green-400 px-3 py-2 rounded-lg font-bold uppercase border border-green-900/50">⬇️ CSV</button>
+            <button onclick="showView('view-public')" class="text-[10px] bg-slate-800 text-slate-400 px-3 py-2 rounded-lg font-bold uppercase">← Volver</button>
+        </div>
+    </header>
+    <div class="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+        <div class="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+            <span class="text-[10px] text-slate-400 font-bold uppercase">Total registros: <span id="total-registros" class="text-white">0</span></span>
+        </div>
+        <div class="flex-1 overflow-auto p-0">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Hora Reloj</th>
+                        <th>Operador</th>
+                        <th>Punta</th>
+                        <th>Fase</th>
+                        <th>Temp Casco</th>
+                        <th>Temp Int</th>
+                        <th>Draft</th>
+                        <th>Origen</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body">
+                    <tr><td colspan="8" class="text-center text-slate-500 py-8">Sin datos registrados</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIN ADMIN -->
+<div id="view-login" class="view p-6 items-center justify-center bg-black">
+    <div class="w-full max-w-xs">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-black italic mb-2">OTM <span class="text-lime-400">120H</span></h2>
+            <p class="text-xs text-slate-500 uppercase tracking-widest">Acceso Restringido</p>
+        </div>
+        <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800 mb-6">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">Credencial</label>
+            <input type="password" id="admin-pin" class="w-full bg-slate-950 border-2 border-slate-700 p-4 rounded-2xl text-center text-3xl text-lime-400 font-bold outline-none focus:border-lime-500" placeholder="••••••">
+        </div>
+        <button onclick="checkAdminPin()" class="w-full py-5 bg-lime-500 text-black font-black rounded-2xl uppercase text-lg shadow-xl shadow-lime-500/20 active:scale-95 transition-transform mb-3">Verificar</button>
+        <button onclick="showView('view-public')" class="w-full py-3 text-slate-500 font-bold uppercase text-xs tracking-widest">← Volver</button>
+    </div>
+</div>
+
+<!-- PANEL ADMIN -->
+<div id="view-admin" class="view p-4 bg-slate-950">
+    <header class="flex justify-between items-center p-4 mb-4 border-b border-slate-800 bg-slate-900/50 rounded-2xl">
+        <div>
+            <h2 class="text-lime-400 font-black italic uppercase tracking-wider text-sm">Panel de Control</h2>
+            <p class="text-[10px] text-slate-600">Ingeniero Responsable</p>
+        </div>
+        <button onclick="logoutAdmin()" class="text-[10px] bg-red-900/30 text-red-500 px-4 py-2 rounded-full font-bold uppercase border border-red-900/50">Cerrar Sesión</button>
+    </header>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 text-center mb-4">
+        <div id="clock-admin" class="mono text-5xl font-bold text-lime-400 mb-2 tracking-tighter">00:00:00</div>
+        <div id="admin-phase" class="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Sistema en Espera</div>
+    </div>
+
+    <button id="btn-master" onclick="toggleHornada()" class="w-full py-8 rounded-[2.5rem] bg-lime-500 text-black font-black text-2xl uppercase mb-6 border-4 border-lime-400 shadow-2xl shadow-lime-500/20 active:scale-95 transition-all">INICIAR HORNADA</button>
+
+    <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">📝 Registrar (Admin)</h3>
+        <div class="mb-3">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Operador/Responsable</label>
+            <input type="text" id="admin-operador" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none uppercase" placeholder="Nombre">
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Temp. Casco</label>
+                <input type="number" id="admin-temp" class="w-full bg-transparent text-2xl font-black text-white outline-none mono" placeholder="000">
+            </div>
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Draft</label>
+                <input type="number" id="admin-draft" step="0.1" class="w-full bg-transparent text-2xl font-black text-sky-400 outline-none mono" placeholder="0.0">
+            </div>
+        </div>
+        <button onclick="guardarAdmin()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl uppercase text-sm">Guardar Registro</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <button onclick="showView('view-tabla')" class="py-3 bg-slate-800 text-blue-400 font-bold rounded-xl uppercase text-xs border border-slate-700">📊 Ver Tabla</button>
+        <button onclick="descargarCSV()" class="py-3 bg-slate-800 text-green-400 font-bold rounded-xl uppercase text-xs border border-slate-700">⬇️ Descargar CSV</button>
+    </div>
+
+    <div class="border border-red-900/30 rounded-2xl p-4 bg-red-950/10">
+        <h4 class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-3">⚠️ Zona Crítica</h4>
+        <button onclick="resetSystem()" class="w-full py-3 bg-red-900/20 text-red-400 font-bold rounded-xl uppercase text-xs border border-red-900/50 active:bg-red-900/40">Reiniciar Sistema Completo</button>
+    </div>
+</div>
+
+<!-- FIRMA DIEGO SOLÍS -->
+<div class="firma-diego">
+    <p>creado por <span>Diego Solís</span></p>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+    }
+</script>
+</body>
+</html>
