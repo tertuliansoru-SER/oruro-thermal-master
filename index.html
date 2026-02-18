@@ -261,7 +261,7 @@
     <p>creado por <span>Diego Solís</span></p>
 </div>
 
-<!-- FIREBASE SDK (AGREGADO) -->
+<!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -269,8 +269,30 @@
 <!-- CONFIGURACIÓN FIREBASE -->
 <script src="firebase-config.js"></script>
 
-<!-- APP LOGIC -->
-<script src="app.js"></script>
+<!-- APP LOGIC - ESPERA A QUE FIREBASE CARGUE -->
+<script>
+    // Verificar que Firebase cargó correctamente antes de ejecutar app.js
+    if (typeof firebase === 'undefined') {
+        console.error('❌ Firebase SDK no cargó');
+        document.getElementById('sync-indicator').textContent = '● ERROR: Firebase no cargó';
+    } else if (typeof auth === 'undefined') {
+        console.error('❌ Auth no inicializado');
+        document.getElementById('sync-indicator').textContent = '● ERROR: Auth no inicializado';
+    } else {
+        console.log('✅ Firebase y Auth listos');
+        // Cargar app.js dinámicamente después de verificar Firebase
+        var script = document.createElement('script');
+        script.src = 'app.js';
+        script.onload = function() {
+            console.log('✅ App.js cargado correctamente');
+        };
+        script.onerror = function() {
+            console.error('❌ Error cargando app.js');
+            document.getElementById('sync-indicator').textContent = '● ERROR: App no cargó';
+        };
+        document.body.appendChild(script);
+    }
+</script>
 
 <!-- SERVICE WORKER -->
 <script>
