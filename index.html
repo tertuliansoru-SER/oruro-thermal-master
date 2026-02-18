@@ -261,7 +261,18 @@
     <p>creado por <span>Diego Solís</span></p>
 </div>
 
-<script type="module" src="firebase-config.js"></script>
+<!-- FIREBASE SDK (AGREGADO) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<!-- CONFIGURACIÓN FIREBASE -->
+<script src="firebase-config.js"></script>
+
+<!-- APP LOGIC -->
+<script src="app.js"></script>
+
+<!-- SERVICE WORKER -->
 <script>
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js');
