@@ -1,12 +1,49 @@
+// app.js - OTM 120H Oruro (Firebase v9 Compat)
+// Variables globales de Firebase (definidas en firebase-config.js):
+// firebase, db, auth, onSnapshot, setDoc, getDocs, deleteDoc, addDoc, query, orderBy, serverTimestamp, collection, doc
+
+const CONFIG = {
+    PIN_ADMIN: '120horas',
+    FACTOR: 0.85,
+    INCHING_LIMIT: 900,
+    RAMPS: {
+        phase1: { max: 1050, rate: 12 },
+        phase2: { max: 1200, rate: 10 },
+        phase3: { max: 1280, rate: 8 }
+    }
+};
+
+const state = {
+    running: false,
+    startTime: null,
+    pausedTime: 0,
+    logs: [],
+    lastInching: null,
+    turnoActual: null,
+    isOnline: false,
+    inchingWarning: false
+};
+
+// Referencias a Firestore
+const HORNADA_DOC = db.collection('hornada').doc('current');
+const LOGS_COLLECTION = db.collection('logs');
+const INCHING_DOC = db.collection('inching').doc('last');
+
+let unsubscribeHornada = null;
+let unsubscribeLogs = null;
+
 async function initFirebase() {
     try {
-        await signInAnonymously(auth);
-        onAuthStateChanged(auth, (user) => {
+        // ✅ CORREGIDO: Usar auth.signInAnonymously() (Compat)
+        await auth.signInAnonymously();
+        
+        auth.onAuthStateChanged((user) => {
             if (user) {
                 setupRealtimeListeners();
                 updateConnectionStatus(true);
             }
         });
+        
         window.addEventListener('online', () => updateConnectionStatus(true));
         window.addEventListener('offline', () => updateConnectionStatus(false));
     } catch (error) {
@@ -25,8 +62,9 @@ function updateConnectionStatus(online) {
 }
 
 function setupRealtimeListeners() {
-    unsubscribeHornada = onSnapshot(HORNADA_DOC, (doc) => {
-        if (doc.exists()) {
+    // ✅ CORREGIDO: Usar sintaxis Compat
+    unsubscribeHornada = HORNADA_DOC.onSnapshot((doc) => {
+        if (doc.exists) {
             const data = doc.data();
             state.running = data.running || false;
             state.startTime = data.startTime ? data.startTime.toMillis() : null;
@@ -37,8 +75,8 @@ function setupRealtimeListeners() {
         }
     });
 
-    const q = query(LOGS_COLLECTION, orderBy('timestamp', 'desc'));
-    unsubscribeLogs = onSnapshot(q, (snapshot) => {
+    const q = LOGS_COLLECTION.orderBy('timestamp', 'desc');
+    unsubscribeLogs = q.onSnapshot((snapshot) => {
         state.logs = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
@@ -48,9 +86,10 @@ function setupRealtimeListeners() {
         renderTabla();
     });
 
-    onSnapshot(INCHING_DOC, (doc) => {
-        if (doc.exists()) {
-            state.lastInching = doc.data().lastInching?.toMillis() || null;
+    INCHING_DOC.onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            state.lastInching = data.lastInching?.toMillis() || null;
             updateUI();
         }
     });
@@ -92,17 +131,20 @@ window.toggleHornada = async function() {
     let newStartTime = state.startTime;
     let newPausedTime = state.pausedTime;
     if (newRunning && !state.startTime) {
-        newStartTime = serverTimestamp();
+        newStartTime = firebase.firestore.FieldValue.serverTimestamp();
         newPausedTime = 0;
-        await setDoc(INCHING_DOC, { lastInching: serverTimestamp(), confirmedBy: auth.currentUser?.uid || 'admin' });
+        await INCHING_DOC.set({ 
+            lastInching: firebase.firestore.FieldValue.serverTimestamp(), 
+            confirmedBy: auth.currentUser?.uid || 'admin' 
+        });
     } else if (!newRunning) {
         newPausedTime = Date.now() - state.startTime;
     }
-    await setDoc(HORNADA_DOC, {
+    await HORNADA_DOC.set({
         running: newRunning,
         startTime: newRunning ? newStartTime : state.startTime,
         pausedTime: newPausedTime,
-        lastUpdate: serverTimestamp(),
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.currentUser?.uid || 'unknown'
     });
 };
@@ -189,7 +231,7 @@ async function crearLogFirebase(operador, temp, draft, origen) {
     else if (hours > 40) phase = 2;
     const tiempoReloj = document.getElementById('clock-main').textContent;
     const logData = {
-        timestamp: serverTimestamp(),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         tiempoReloj: tiempoReloj,
         elapsed: elapsed,
         phase: phase,
@@ -203,15 +245,15 @@ async function crearLogFirebase(operador, temp, draft, origen) {
         inching: false,
         deviceId: auth.currentUser?.uid || 'unknown'
     };
-    await addDoc(LOGS_COLLECTION, logData);
+    await LOGS_COLLECTION.add(logData);
 }
 
 window.confirmInching = async function() {
     if (!state.isOnline) { alert('Sin conexión'); return; }
-    await setDoc(INCHING_DOC, {
-        lastInching: serverTimestamp(),
+    await INCHING_DOC.set({
+        lastInching: firebase.firestore.FieldValue.serverTimestamp(),
         confirmedBy: state.turnoActual ? state.turnoActual.nombre : 'Admin',
-        confirmedAt: serverTimestamp()
+        confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     state.inchingWarning = false;
     document.getElementById('alert-inching').classList.add('hidden');
@@ -274,11 +316,16 @@ window.resetSystem = async function() {
     if (!confirm('¿ESTÁ ABSOLUTAMENTE SEGURO?')) return;
     if (!state.isOnline) { alert('Se requiere conexión para reiniciar'); return; }
     try {
-        const snapshot = await getDocs(LOGS_COLLECTION);
-        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        const snapshot = await LOGS_COLLECTION.get();
+        const deletePromises = snapshot.docs.map(doc => doc.ref.delete());
         await Promise.all(deletePromises);
-        await setDoc(HORNADA_DOC, { running: false, startTime: null, pausedTime: 0, lastUpdate: serverTimestamp() });
-        await setDoc(INCHING_DOC, { lastInching: null });
+        await HORNADA_DOC.set({ 
+            running: false, 
+            startTime: null, 
+            pausedTime: 0, 
+            lastUpdate: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        await INCHING_DOC.set({ lastInching: null });
         state.running = false;
         state.startTime = null;
         state.pausedTime = 0;
