@@ -1,4 +1,4 @@
-// firebase-config.js
+// firebase-config.js - OTM 120H Oruro
 const firebaseConfig = {
   apiKey: "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
   authDomain: "otm-120h-oruro.firebaseapp.com",
@@ -8,9 +8,9 @@ const firebaseConfig = {
   appId: "1:442199177770:web:21770802ebef01a34c2153"
 };
 
-// Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Variables globales para usar en app.js
 const db = firebase.firestore();
-const auth = firebase.auth();
+const auth = firebase.auth();  // ← ESTA LÍNEA FALTABA
+
+console.log('Firebase inicializado');
