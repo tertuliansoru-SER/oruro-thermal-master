@@ -296,6 +296,10 @@ function logoutAdmin() {
 
 function toggleHornada() {
   hornadaActiva = !hornadaActiva;
+  
+  // Guardar estado
+  localStorage.setItem('hornada-activa', hornadaActiva);
+  
   const btn = document.getElementById('btn-master');
   const status = document.getElementById('status-badge');
   const led = document.getElementById('led-main');
@@ -319,14 +323,29 @@ function toggleHornada() {
 
 // === INCHING ===
 function startInchTimer() {
-  lastInchTime = new Date();
+  // Verificar si hay un tiempo guardado
+  const savedTime = localStorage.getItem('last-inch-time');
+  if (savedTime) {
+    lastInchTime = new Date(savedTime);
+  } else {
+    lastInchTime = new Date();
+    localStorage.setItem('last-inch-time', lastInchTime.toISOString());
+  }
+  
   updateInchDisplay();
   inchInterval = setInterval(updateInchDisplay, 1000);
 }
 
 function stopInchTimer() {
-  clearInterval(inchInterval);
-  document.getElementById('inch-timer').textContent = '--:--';
+  if (inchInterval) {
+    clearInterval(inchInterval);
+    inchInterval = null;
+  }
+  const timerEl = document.getElementById('inch-timer');
+  if (timerEl) timerEl.textContent = '--:--';
+  
+  // Guardar que está detenido
+  localStorage.removeItem('last-inch-time');
 }
 
 function updateInchDisplay() {
@@ -346,6 +365,7 @@ function updateInchDisplay() {
 
 function confirmInching() {
   lastInchTime = new Date();
+  localStorage.setItem('last-inch-time', lastInchTime.toISOString());
   document.getElementById('alert-inching').classList.add('hidden');
   document.getElementById('last-inch').textContent = 
     lastInchTime.toLocaleTimeString('es-BO', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -353,11 +373,34 @@ function confirmInching() {
 
 // === UTILIDADES ===
 function checkExistingSession() {
+  // Verificar turno
   const saved = localStorage.getItem('turno-actual');
   if (saved) {
     turnoActual = JSON.parse(saved);
     updateTurnoUI();
     enableRegistro();
+  }
+  
+  // Verificar estado de hornada
+  const hornadaSaved = localStorage.getItem('hornada-activa');
+  if (hornadaSaved === 'true') {
+    hornadaActiva = true;
+    // Restaurar UI de hornada activa
+    const btn = document.getElementById('btn-master');
+    const status = document.getElementById('status-badge');
+    const led = document.getElementById('led-main');
+    if (btn) {
+      btn.textContent = 'DETENER HORNADA';
+      btn.className = 'w-full py-8 rounded-[2.5rem] bg-red-500 text-white font-black text-2xl uppercase mb-6 border-4 border-red-400 shadow-2xl shadow-red-500/20 active:scale-95 transition-all';
+    }
+    if (status) {
+      status.textContent = 'Hornada en Curso';
+      status.className = 'inline-block px-3 py-1 bg-lime-900/30 text-lime-400 rounded-full text-[10px] font-black uppercase tracking-widest';
+    }
+    if (led) {
+      led.className = 'w-4 h-4 rounded-full bg-lime-500 led-lime';
+    }
+    startInchTimer();
   }
 }
 
@@ -398,8 +441,16 @@ function descargarCSV() {
 
 function resetSystem() {
   if (!confirm('¿REINICIAR TODO? Se perderán datos no guardados')) return;
+  
+  // Detener todo primero
+  hornadaActiva = false;
+  stopInchTimer();
+  
+  // Limpiar almacenamiento
   localStorage.clear();
   sessionStorage.clear();
+  
+  // Recargar
   location.reload();
 }
 
