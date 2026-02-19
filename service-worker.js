@@ -1,27 +1,25 @@
-const CACHE_NAME = 'otm-120h-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/firebase-config.js',
-  '/app.js',
-  '/manifest.json'
-];
+const CACHE_NAME = 'otm-120h-v2';
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
+  console.log('[SW] Instalando v2');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activando v2');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.keys().then(names => 
+      Promise.all(names.map(name => {
+        console.log('[SW] Borrando caché:', name);
+        return caches.delete(name);
+      }))
+    ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    fetch(event.request)
+      .catch(() => caches.match(event.request))
   );
 });
