@@ -10,7 +10,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-const db = firebase.firestore();
-const auth = firebase.auth();  // ← ESTA LÍNEA FALTABA
+//const db = firebase.firestore();
+//const auth = firebase.auth();  // ← ESTA LÍNEA FALTABA
 
 console.log('Firebase inicializado');
