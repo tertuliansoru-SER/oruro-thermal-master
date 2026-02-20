@@ -7,129 +7,205 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;700;900&display=swap');
-        :root { --bg: #020617; --lime: #a3e635; }
+        :root { --bg: #020617; --lime: #a3e635; --amber: #fbbf24; --red: #ef4444; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
         .view.active { display: flex; }
+        .led-active { animation: pulse 2s infinite; background-color: var(--lime); }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px var(--lime); } 50% { box-shadow: 0 0 20px var(--lime); } }
+        input, select { font-size: 16px !important; background: #000 !important; color: white !important; border: 1px solid #334155 !important; border-radius: 0.75rem; padding: 0.75rem; }
         .btn-p:active { transform: scale(0.96); opacity: 0.8; }
     </style>
 </head>
 <body>
-    <div id="loading-screen" class="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center p-6">
-        <div class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500">Sincronizando Sistema Oruro...</p>
+
+    <!-- CARGADOR CON DIAGNÓSTICO (BOOT SECUENCIAL) -->
+    <div id="loading-screen" class="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+        <div id="loader-spinner" class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loading-text" class="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500">Iniciando Enlace Oruro...</p>
+        <div id="diag-box" class="hidden mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-3xl max-w-xs">
+            <p class="text-red-500 text-[10px] font-bold uppercase mb-2">Error de Enlace</p>
+            <p id="diag-msg" class="text-white text-[11px] mb-4">No se pudo autenticar con la base de datos.</p>
+            <button onclick="location.reload()" class="w-full py-3 bg-red-600 text-white text-[10px] font-bold uppercase rounded-xl">Reintentar</button>
+        </div>
     </div>
 
-    <div id="v-mon" class="view active p-4">
+    <!-- MONITOR PRINCIPAL -->
+    <div id="v-mon" class="view p-4 pb-12">
         <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4 shadow-xl">
             <div>
-                <h1 class="text-2xl font-black italic uppercase leading-none text-white">OTM <span class="text-lime-400">120H</span></h1>
-                <p id="net-status" class="text-[8px] font-bold text-red-500 uppercase mt-1">● OFFLINE</p>
+                <h1 class="text-2xl font-black italic tracking-tighter uppercase leading-none">OTM <span class="text-lime-400">120H</span></h1>
+                <p id="net-status" class="text-[8px] font-bold text-slate-500 uppercase mt-1 tracking-widest italic">Estableciendo conexión...</p>
             </div>
             <div id="led" class="w-4 h-4 rounded-full bg-slate-700"></div>
         </header>
 
+        <!-- ALERTA DE GIRO (INCHING) -->
+        <div id="alt-inch" class="hidden mb-4 p-5 bg-amber-500 text-black rounded-3xl border-2 border-amber-400 text-center animate-bounce shadow-2xl">
+            <h2 class="text-xs font-black uppercase mb-1 italic">⚠️ ¡GIRO DE 90° REQUERIDO!</h2>
+            <div id="alt-inch-timer" class="mono text-2xl font-black mb-2">00:00</div>
+            <button onclick="f_giro()" class="w-full py-3 bg-black text-white font-black rounded-xl btn-p">Confirmar Giro Realizado</button>
+        </div>
+
+        <!-- RELOJ MAESTRO -->
         <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 shadow-2xl relative overflow-hidden">
+            <div id="bar" class="absolute top-0 left-0 h-1.5 bg-lime-500 transition-all duration-1000" style="width: 0%"></div>
             <div id="clk" class="mono text-6xl font-bold text-white mb-2 tracking-tighter tabular-nums">00:00:00</div>
             <div id="ph" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Sistema Pausado</div>
         </div>
 
         <div class="grid grid-cols-2 gap-3 mb-4 text-center">
             <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
-                <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Interna (Aprox)</p>
+                <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Interna (3.45x)</p>
                 <p id="t-int" class="text-4xl font-black text-lime-400 mono">--°C</p>
             </div>
             <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
-                <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Siguiente Giro</p>
+                <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Giro en</p>
                 <p id="inch-timer" class="text-4xl font-black text-orange-400 mono">--:--</p>
             </div>
         </div>
 
+        <!-- REGISTRO OPERADOR -->
         <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4 shadow-xl">
             <div id="f-tur">
-                <h3 class="text-xs font-bold text-blue-400 uppercase mb-3 italic text-center">👤 Registro de Turno</h3>
-                <input type="text" id="i-nom" class="w-full bg-black border border-slate-700 rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold text-white outline-none" placeholder="NOMBRE OPERADOR">
+                <input type="text" id="i-nom" class="w-full rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold outline-none" placeholder="Nombre Operador">
                 <div class="grid grid-cols-2 gap-2 mb-3">
-                    <input type="time" id="i-hor" class="w-full bg-black border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white">
-                    <select id="i-pun" class="w-full bg-black border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white">
-                        <option value="1">Punta 1</option><option value="2">Punta 2</option><option value="3">Punta 3</option>
+                    <input type="time" id="i-hor" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
+                    <select id="i-pun" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
+                        <option value="1">1ra Punta</option><option value="2">2da Punta</option><option value="3">3ra Punta</option>
                     </select>
                 </div>
-                <button onclick="f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p">Entrar a Turno</button>
+                <button onclick="f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p">Iniciar Mi Turno</button>
             </div>
             <div id="d-tur" class="hidden text-center">
-                <div class="bg-blue-600/20 border border-blue-500 rounded-2xl p-4 mb-3">
-                    <p id="o-nom" class="text-lg font-black text-blue-400 uppercase tracking-tighter">--</p>
-                    <p id="o-inf" class="text-[10px] text-blue-300 uppercase mt-1">--</p>
+                <div class="bg-blue-600 rounded-2xl p-4 mb-3 shadow-lg">
+                    <p id="o-nom" class="text-lg font-black text-white uppercase tracking-tighter">--</p>
+                    <p id="o-inf" class="text-[10px] text-blue-100 uppercase mt-1">--</p>
                 </div>
                 <button onclick="f_tur_out()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-xl text-[10px] uppercase">Cerrar Turno</button>
             </div>
         </div>
 
-        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none transition-all">
+        <!-- REGISTRO DE DATOS -->
+        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none transition-all shadow-2xl">
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Temp Casco °C</label>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1 italic uppercase">Temp Carcasa</label>
                     <input type="number" id="i-tem" class="w-full bg-transparent text-3xl font-black text-white text-center outline-none" placeholder="0">
                 </div>
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-sky-500 mb-1 uppercase">Draft mmca</label>
+                    <label class="block text-[10px] font-bold text-sky-500 mb-1 italic uppercase">Draft mmca</label>
                     <input type="number" id="i-dra" step="0.1" class="w-full bg-transparent text-3xl font-black text-sky-400 text-center outline-none" placeholder="0.0">
                 </div>
             </div>
             <button onclick="f_reg()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg btn-p">Guardar Lectura</button>
         </div>
 
-        <button onclick="f_nav('v-adm-login')" class="w-full mt-6 py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-800">🔒 Ingeniería (Admin)</button>
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <button onclick="f_nav('v-log')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">Bitácora</button>
+            <button onclick="f_exp()" class="py-4 bg-slate-800 text-green-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">Descargar CSV</button>
+        </div>
+
+        <button onclick="f_nav('v-adm-login')" class="w-full py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-800 mb-8">🔒 Ingeniería (Admin)</button>
+
+        <!-- FIRMA DIEGO SOLÍS -->
+        <footer class="mt-auto pt-8 border-t border-slate-900 text-center">
+            <p class="text-[10px] font-black text-slate-500 tracking-[0.5em] uppercase mb-1">Proyecto OTM 120H</p>
+            <p class="text-[8px] font-bold text-slate-600 tracking-[0.3em] uppercase italic">
+                Creada por Diego Solís
+            </p>
+        </footer>
     </div>
 
-    <div id="v-adm-login" class="view p-6 items-center justify-center bg-black">
-        <div class="w-full max-w-xs text-center space-y-6">
-            <h2 class="text-3xl font-black uppercase italic">Acceso <span class="text-lime-400">Jefe</span></h2>
-            <input type="password" id="a-pin" class="w-full p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none border border-slate-800" placeholder="••••" inputmode="numeric">
-            <button onclick="f_pin()" class="w-full py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-xl btn-p">Entrar</button>
-            <button onclick="f_nav('v-mon')" class="text-slate-600 font-bold uppercase text-[10px]">Cancelar</button>
+    <!-- VISTA BITÁCORA -->
+    <div id="v-log" class="view p-4 bg-slate-950">
+        <header class="flex justify-between items-center mb-4">
+            <h2 class="text-blue-400 font-black uppercase text-sm italic tracking-widest">Registros Históricos</h2>
+            <button onclick="f_nav('v-mon')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase font-black">Cerrar</button>
+        </header>
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 flex-1 overflow-y-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-950 text-slate-500 uppercase text-[9px] sticky top-0">
+                    <tr><th class="p-4">Reloj</th><th class="p-4">Op</th><th class="p-4">Int°</th><th class="p-4">Dra.</th></tr>
+                </thead>
+                <tbody id="t-body" class="mono text-white/80"></tbody>
+            </table>
         </div>
     </div>
 
+    <!-- LOGIN ADMIN -->
+    <div id="v-adm-login" class="view p-6 items-center justify-center bg-black text-center">
+        <h2 class="text-3xl font-black italic uppercase tracking-tighter text-white mb-8">Acceso <span class="text-lime-400">Jefe</span></h2>
+        <input type="password" id="a-pin" class="w-full max-w-xs p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none border border-slate-800 mb-6" placeholder="••••" inputmode="numeric">
+        <button onclick="f_pin()" class="w-full max-w-xs py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-xl btn-p shadow-xl mb-4">Entrar</button>
+        <button onclick="f_nav('v-mon')" class="text-slate-600 font-bold uppercase text-[10px] tracking-widest">Cancelar</button>
+    </div>
+
+    <!-- PANEL ADMIN MAESTRO -->
     <div id="v-adm" class="view p-4 bg-slate-950">
         <header class="flex justify-between items-center mb-8">
-            <h2 class="text-lime-400 font-black italic uppercase text-sm">Control Maestro</h2>
-            <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase">Cerrar</button>
+            <h2 class="text-lime-400 font-black italic uppercase text-sm tracking-widest">Ingeniería Planta</h2>
+            <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase font-black">Salir</button>
         </header>
-        <button id="b-tgl" onclick="f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl btn-p">CARGANDO...</button>
-        <button onclick="f_giro()" class="w-full mt-10 py-8 bg-orange-500 text-black font-black rounded-3xl uppercase text-xl btn-p">Registrar Giro (Inching)</button>
+        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-12 text-center mb-10 shadow-2xl w-full">
+            <div id="a-clk" class="mono text-5xl font-bold text-lime-400 mb-1 tracking-tighter tabular-nums">00:00:00</div>
+            <p id="a-st" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Cargando...</p>
+        </div>
+        <button id="b-tgl" onclick="f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase btn-p shadow-2xl">CARGANDO...</button>
+        <button onclick="f_rst()" class="w-full mt-24 py-4 text-red-900 font-black text-[9px] uppercase tracking-[0.5em] opacity-30">Reset Hornada Total</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- CREDENCIALES DIEGO SOLÍS ---
         const firebaseConfig = {
             apiKey: "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
-            authDomain: "otm-120h-oruro.firebaseapp.com",
-            projectId: "otm-120h-oruro",
-            storageBucket: "otm-120h-oruro.firebasestorage.app",
-            messagingSenderId: "442199177770",
-            appId: "1:442199177770:web:21770802ebef01a34c2153"
+            authDomain: "otm-120h-oruro-master.firebaseapp.com",
+            projectId: "otm-120h-oruro-master",
+            storageBucket: "otm-120h-oruro-master.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
         };
 
+        const aid = "otm-120h-oruro-master";
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        const aut = getAuth(app);
         const db = getFirestore(app);
-        const aid = 'otm-120h-oruro-final';
 
         let st = { running: false, startTS: null, lastRotTS: null };
+        let logs = [];
         let op = JSON.parse(localStorage.getItem('otm_op')) || null;
+        let synced = false;
 
-        const fmt = (s) => new Date(s * 1000).toISOString().substr(11, 8);
-        const fmtMS = (s) => new Date(s * 1000).toISOString().substr(14, 5);
+        // --- BOOT SECUENCIAL ---
+        async function boot() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(aut, __initial_auth_token);
+                } else {
+                    await signInAnonymously(aut);
+                }
+                startSync();
+            } catch (err) {
+                showDiag("Fallo de Identificación: " + err.code);
+            }
+        }
 
+        function showDiag(msg) {
+            document.getElementById('loader-spinner').classList.add('hidden');
+            document.getElementById('diag-box').classList.remove('hidden');
+            document.getElementById('diag-msg').innerText = msg;
+        }
+
+        // --- FUNCIONES ---
         window.f_nav = (id) => {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+            window.scrollTo(0,0);
         };
 
         window.f_pin = () => {
@@ -141,7 +217,7 @@
 
         window.f_tur_in = () => {
             const n = document.getElementById('i-nom').value.trim();
-            if(!n) return alert("Falta Nombre");
+            if(!n) return alert("Ingrese su nombre");
             op = { nombre: n.toUpperCase(), punta: document.getElementById('i-pun').value, hora: document.getElementById('i-hor').value };
             localStorage.setItem('otm_op', JSON.stringify(op));
             updateUI();
@@ -153,16 +229,23 @@
             const t = document.getElementById('i-tem').value;
             const d = document.getElementById('i-dra').value || 0;
             if(!t || !op || !st.running) return;
-            const s = Math.floor((Date.now() - st.startTS)/1000);
-            await addDoc(collection(db, 'artifacts', aid, 'public', 'data', 'logs'), {
-                ts: Date.now(),
-                elapsed: s,
-                op: op.nombre,
-                int: Math.round(parseFloat(t) * 3.45),
-                draft: parseFloat(d)
-            });
-            document.getElementById('i-tem').value = ''; document.getElementById('i-dra').value = '';
-            alert("Lectura Guardada");
+            try {
+                await addDoc(collection(db, 'artifacts', aid, 'public', 'data', 'registros'), {
+                    ts: Date.now(),
+                    elapsed: Math.floor((Date.now() - st.startTS)/1000),
+                    op: op.nombre,
+                    int: Math.round(parseFloat(t) * 3.45),
+                    draft: parseFloat(d),
+                    punta: op.punta
+                });
+                document.getElementById('i-tem').value = ''; document.getElementById('i-dra').value = '';
+                alert("✓ REGISTRO ENVIADO");
+            } catch(e) { alert("Error de Enlace: " + e.code); }
+        };
+
+        window.f_giro = async () => {
+            if(!st.running) return;
+            await setDoc(doc(db, 'artifacts', aid, 'public', 'data', 'master'), { ...st, lastRotTS: Date.now() });
         };
 
         window.f_tgl = async () => {
@@ -175,62 +258,83 @@
             });
         };
 
-        window.f_giro = async () => {
-            if(!st.running) return;
-            await setDoc(doc(db, 'artifacts', aid, 'public', 'data', 'master'), { ...st, lastRotTS: Date.now() });
+        window.f_rst = async () => {
+            if(!confirm("⚠️ ¿BORRAR TODO? Se limpiará la nube y el reloj volverá a cero.")) return;
+            await setDoc(doc(db, 'artifacts', aid, 'public', 'data', 'master'), { running: false, startTS: null, lastRotTS: null });
+            const s = await getDocs(collection(db, 'artifacts', aid, 'public', 'data', 'registros'));
+            for(const d of s.docs) await deleteDoc(d.ref);
+            localStorage.clear();
+            location.reload();
         };
 
-        function updateUI() {
-            const active = st.running && op;
-            const s = document.getElementById('sec-reg');
-            s.style.opacity = active ? "1" : "0.3";
-            s.style.pointerEvents = active ? "auto" : "none";
-            
-            if(op) {
-                document.getElementById('f-tur').classList.add('hidden');
-                document.getElementById('d-tur').classList.remove('hidden');
-                document.getElementById('o-nom').innerText = op.nombre;
-                document.getElementById('o-inf').innerText = `Punta ${op.punta} | Ingreso: ${op.hora}`;
-            } else {
-                document.getElementById('f-tur').classList.remove('hidden');
-                document.getElementById('d-tur').classList.add('hidden');
-            }
-        }
+        window.f_exp = () => {
+            if(!logs.length) return alert("Sin datos");
+            const h = "Reloj;Operador;Punta;Temp_Int;Draft\n";
+            const b = logs.map(l => `${formatHMS(l.elapsed)};${l.op};${l.punta};${l.int};${l.draft}`).join("\n");
+            const blob = new Blob(["\uFEFF" + h + b], { type: 'text/csv' });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `OTM_ORURO_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        };
 
-        async function boot() {
-            try {
-                await signInAnonymously(auth);
-                document.getElementById('net-status').innerText = "● CONECTADO";
-                document.getElementById('net-status').className = "text-[8px] font-bold text-lime-500 uppercase mt-1";
-                document.getElementById('loading-screen').classList.add('hidden');
-                
-                onSnapshot(doc(db, 'artifacts', aid, 'public', 'data', 'master'), (snap) => {
-                    if(snap.exists()) {
-                        st = snap.data();
-                        const b = document.getElementById('b-tgl');
-                        b.innerText = st.running ? "PAUSAR HORNADA" : "INICIAR HORNADA";
-                        b.className = st.running ? "w-full py-20 rounded-[4rem] bg-zinc-900 text-zinc-600 font-black text-4xl uppercase btn-p" : "w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl btn-p";
-                        updateUI();
+        // --- SINCRONIZACIÓN ---
+        const startSync = () => {
+            onSnapshot(doc(db, 'artifacts', aid, 'public', 'data', 'master'), (snap) => {
+                if(snap.exists()) {
+                    st = snap.data();
+                    updateUI();
+                    if(!synced) { 
+                        document.getElementById('loading-screen').classList.add('hidden'); 
+                        synced = true; 
                     }
-                });
-            } catch (err) { console.error(err); }
-        }
+                } else {
+                    setDoc(doc(db, 'artifacts', aid, 'public', 'data', 'master'), { running: false, startTS: null, lastRotTS: null });
+                }
+            }, (err) => { 
+                showDiag("Error de Sincronización: " + err.code);
+            });
 
+            const q = query(collection(db, 'artifacts', aid, 'public', 'data', 'registros'), orderBy('ts', 'desc'));
+            onSnapshot(q, (snap) => { 
+                logs = snap.docs.map(d => d.data()); 
+                renderLogs(); 
+            });
+        };
+
+        // --- CICLOS ---
         setInterval(() => {
             if(st.running && st.startTS) {
                 const s = Math.floor((Date.now() - st.startTS)/1000);
-                document.getElementById('clk').innerText = fmt(s);
+                document.getElementById('clk').innerText = formatHMS(s);
+                document.getElementById('a-clk').innerText = formatHMS(s);
+                document.getElementById('bar').style.width = Math.min((s/432000)*100, 100) + '%';
+                
                 if(st.lastRotTS) {
                     const since = Math.floor((Date.now() - st.lastRotTS)/1000);
-                    const rem = Math.max(0, 7200 - since);
-                    document.getElementById('inch-timer').innerText = fmtMS(rem);
+                    const rem = Math.max(0, 7200 - since); // 2 Horas = 7200 seg
+                    document.getElementById('inch-timer').innerText = formatMS(rem);
+                    document.getElementById('alt-inch-timer').innerText = formatMS(rem);
+                    document.getElementById('alt-inch').classList.toggle('hidden', rem > 0);
                 }
                 const h = s/3600;
-                document.getElementById('ph').innerText = h > 80 ? "F3: VITRIFICADO" : (h > 40 ? "F2: QUÍMICO" : "F1: SECADO");
+                document.getElementById('ph').innerText = h > 80 ? "FASE 3: VITRIFICADO" : (h > 40 ? "FASE 2: REACCIÓN" : "FASE 1: SECADO");
             }
         }, 1000);
 
-        boot();
-    </script>
-</body>
-</html>
+        function updateUI() {
+            const l = document.getElementById('led');
+            const b = document.getElementById('b-tgl');
+            const s = document.getElementById('sec-reg');
+            const ns = document.getElementById('net-status');
+            
+            if(st.running) {
+                l.className = "w-4 h-4 rounded-full led-active";
+                b.innerText = "PAUSAR HORNADA"; 
+                b.className = "w-full py-20 rounded-[4rem] bg-zinc-900 text-zinc-600 font-black text-4xl uppercase btn-p border border-zinc-800 shadow-none";
+                document.getElementById('a-st').innerText = "ESTADO: EN MARCHA";
+            } else {
+                l.className = "w-4 h-4 rounded-full bg-red-600 shadow-[0_0_10px_red]";
+                b.innerText = "INICIAR HORNADA"; 
+                b.className = "w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-5xl uppercase btn-p shadow-2xl shadow-lime-500/30";
+                document.getElementById('a-st').innerText = "ESTADO
