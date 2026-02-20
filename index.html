@@ -167,19 +167,20 @@
     </div>
 
     <script type="module">
-        // Atrapador de Errores Críticos: Si la App choca, te muestra el error y frena el spinner.
-        window.onerror = function(message, source, lineno, colno, error) {
+        // 1. IMPORTS PRIMERO (OBLIGATORIO)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 2. ATRAPADOR DE ERRORES DESPUÉS DE LOS IMPORTS
+        window.onerror = function(message) {
             document.getElementById('loader-spinner').classList.add('hidden');
             document.getElementById('diag-box').classList.remove('hidden');
             document.getElementById('diag-msg').innerText = "Falla de Código: " + message;
             return true;
         };
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- CREDENCIALES EXACTAS (SIN VARIABLES INVISIBLES) ---
+        // --- CREDENCIALES EXACTAS ---
         const firebaseConfig = {
             apiKey:            "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
             authDomain:        "otm-120h-oruro.firebaseapp.com",
@@ -189,15 +190,21 @@
             appId:             "1:442199177770:web:21770802ebef01a34c2153"
         };
 
-        const AID = 'otm-120h-oruro-v5'; // Versión limpia
+        const AID = 'otm-120h-oruro-v5'; 
         const app = initializeApp(firebaseConfig);
         const aut = getAuth(app);
         const db = getFirestore(app);
 
         let st = { running: false, startTS: null, lastRotTS: null };
         let logs = [];
-        let op = JSON.parse(localStorage.getItem('otm_op')) || null;
+        let op = null;
         let synced = false;
+
+        // Proteger la lectura de memoria
+        try {
+            const savedOp = localStorage.getItem('otm_op');
+            if (savedOp) op = JSON.parse(savedOp);
+        } catch(e) { console.error("Error leyendo localStorage", e); }
 
         // --- LÓGICA PIN 1407 ---
         let pinBuf = '';
@@ -219,7 +226,6 @@
 
         // --- ARRANQUE SECUENCIAL ---
         async function boot() {
-            // "Kill Switch" de 8 segundos para el spinner
             const timeout = setTimeout(() => {
                 if(!synced) {
                     document.getElementById('loader-spinner').classList.add('hidden');
@@ -229,10 +235,8 @@
             }, 8000);
 
             try {
-                // 1. Iniciar sesión anónima (Requiere que esté habilitado en la consola Firebase)
                 await signInAnonymously(aut);
                 
-                // 2. Ruta exacta de 6 segmentos (Colección -> Documento -> Colección -> Documento -> Colección -> Documento)
                 const masterRef = doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master');
                 
                 onSnapshot(masterRef, (snap) => {
@@ -254,7 +258,6 @@
                     document.getElementById('diag-msg').innerText = "Firestore Error: " + err.message;
                 });
 
-                // 3. Ruta de 5 segmentos para la Colección de Logs
                 const logsColl = collection(db, 'artifacts', AID, 'public', 'data', 'logs');
                 const q = query(logsColl, orderBy('ts', 'desc'));
                 onSnapshot(q, (snap) => { logs = snap.docs.map(d => d.data()); renderLogs(); });
@@ -311,4 +314,11 @@
             const now = Date.now();
             await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master'), { 
                 running: r, 
-                startTS: (r && !st.startTS) ? now :
+                startTS: (r && !st.startTS) ? now : st.startTS,
+                lastRotTS: (r && !st.lastRotTS) ? now : st.lastRotTS 
+            });
+        };
+
+        window.f_rst = async () => {
+            if(!confirm("¿BORRAR TODO EL SISTEMA?")) return;
+            await set
