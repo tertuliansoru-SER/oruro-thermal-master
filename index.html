@@ -210,75 +210,76 @@
     </script>
 
     <script type="module">
-        // TEMPORIZADOR DE SEGURIDAD PARA LA DESCARGA
-        const dlTimeout = setTimeout(() => {
-            window.stepLog('s-1', 'err', 'Bloqueado por la Red');
-            document.getElementById('diag-box').classList.remove('hidden');
-            document.getElementById('diag-msg').innerText = "Tu proveedor de internet (Entel/Tigo/etc), el Wi-Fi, o el navegador están impidiendo descargar los archivos de Google Firebase (gstatic.com). Intenta usar otra red o apagar bloqueadores de anuncios.";
-        }, 8000);
-
-        try {
-            // DESCARGA DINÁMICA (Atrapa bloqueos de red)
-            const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-            const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-            const { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-
-            clearTimeout(dlTimeout);
-            window.stepLog('s-1', 'ok', 'Servidores Google conectados');
-            
-            // --- CREDENCIALES ---
-            const firebaseConfig = {
-                apiKey:            "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
-                authDomain:        "otm-120h-oruro.firebaseapp.com",
-                projectId:         "otm-120h-oruro",
-                storageBucket:     "otm-120h-oruro.firebasestorage.app",
-                messagingSenderId: "442199177770",
-                appId:             "1:442199177770:web:21770802ebef01a34c2153"
-            };
-
-            const AID = 'otm-120h-oruro-v5'; 
-            const app = initializeApp(firebaseConfig);
-            const aut = getAuth(app);
-            const db = getFirestore(app);
-
-            let st = { running: false, startTS: null, lastRotTS: null };
-            let logs = [];
-            let op = null;
-
-            try { const savedOp = localStorage.getItem('otm_op'); if (savedOp) op = JSON.parse(savedOp); } catch(e) {}
-
-            // PASO 2: AUTENTICACIÓN
-            window.stepLog('s-2', 'load', 'Iniciando Sesión...');
-            await signInAnonymously(aut);
-            window.stepLog('s-2', 'ok', 'Sesión iniciada');
-
-            // PASO 3: CONEXIÓN DB
-            window.stepLog('s-3', 'load', 'Abriendo Base de Datos...');
-            const masterRef = doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master');
-            
-            onSnapshot(masterRef, (snap) => {
-                window.stepLog('s-3', 'ok', 'Sincronizado con Oruro');
-                setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 1000);
-
-                if(snap.exists()) {
-                    st = snap.data();
-                    updateUI();
-                } else {
-                    setDoc(masterRef, { running: false, startTS: null, lastRotTS: null });
-                }
-            }, (err) => {
-                window.stepLog('s-3', 'err', 'Fallo de Base de Datos');
+        // ENVOLVEMOS TODO EN UNA FUNCIÓN ASÍNCRONA (A prueba de navegadores antiguos)
+        async function arrancarSistema() {
+            // TEMPORIZADOR DE SEGURIDAD PARA LA DESCARGA (8 segundos)
+            const dlTimeout = setTimeout(() => {
+                window.stepLog('s-1', 'err', 'Bloqueado por la Red');
                 document.getElementById('diag-box').classList.remove('hidden');
-                document.getElementById('diag-msg').innerText = "Reglas Firestore: " + err.message;
-            });
+                document.getElementById('diag-msg').innerText = "Tu proveedor de internet (Entel/Tigo), el Wi-Fi, o el antivirus están impidiendo descargar los archivos de Google Firebase. Intenta usar los datos móviles de tu celular o cambiar de red.";
+            }, 8000);
 
-            const logsColl = collection(db, 'artifacts', AID, 'public', 'data', 'logs');
-            const q = query(logsColl, orderBy('ts', 'desc'));
-            onSnapshot(q, (snap) => { logs = snap.docs.map(d => d.data()); renderLogs(); });
+            try {
+                // DESCARGA DINÁMICA
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                const { getAuth, signInAnonymously } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                const { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
-            // ASIGNAR EVENTOS A BOTONES
-            document.getElementById('btn-giro').onclick = async () => { if(st.running) await setDoc(masterRef, { ...st, lastRotTS: Date.now() }); };
-            document.getElementById('b-tgl').onclick = async () => { const r = !st.running; const now = Date.now(); await setDoc(masterRef, { running: r, startTS: (r && !st.startTS) ? now : st.startTS, lastRotTS: (r && !st.lastRotTS) ? now : st.lastRotTS }); };
-            document.getElementById('b-rst').onclick = async () => { document.getElementById('b-tgl').innerText = "BORRANDO..."; await setDoc(masterRef, { running: false, startTS: null, lastRotTS: null }); const s = await getDocs(collection(db, 'artifacts', AID, 'public', 'data', 'logs')); for(const d of s.docs) await deleteDoc(d.ref); localStorage.clear(); location.reload(); };
-            
-            document.getElementById('btn-tur-in').onclick = (
+                clearTimeout(dlTimeout);
+                window.stepLog('s-1', 'ok', 'Servidores Google conectados');
+                
+                // --- CREDENCIALES ---
+                const firebaseConfig = {
+                    apiKey:            "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
+                    authDomain:        "otm-120h-oruro.firebaseapp.com",
+                    projectId:         "otm-120h-oruro",
+                    storageBucket:     "otm-120h-oruro.firebasestorage.app",
+                    messagingSenderId: "442199177770",
+                    appId:             "1:442199177770:web:21770802ebef01a34c2153"
+                };
+
+                const app = initializeApp(firebaseConfig);
+                const aut = getAuth(app);
+                const db = getFirestore(app);
+
+                let st = { running: false, startTS: null, lastRotTS: null };
+                let logs = [];
+                let op = null;
+
+                try { const savedOp = localStorage.getItem('otm_op'); if (savedOp) op = JSON.parse(savedOp); } catch(e) {}
+
+                // PASO 2: AUTENTICACIÓN
+                window.stepLog('s-2', 'load', 'Iniciando Sesión...');
+                await signInAnonymously(aut);
+                window.stepLog('s-2', 'ok', 'Sesión iniciada');
+
+                // PASO 3: CONEXIÓN DB (Apuntando a tu nueva colección "registros")
+                window.stepLog('s-3', 'load', 'Abriendo Base de Datos...');
+                
+                // Usamos la carpeta raiz para que lo veas facil en Firebase
+                const masterRef = doc(db, 'configuracion', 'master');
+                
+                onSnapshot(masterRef, (snap) => {
+                    window.stepLog('s-3', 'ok', 'Sincronizado con Oruro');
+                    setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 1000);
+
+                    if(snap.exists()) {
+                        st = snap.data();
+                        updateUI();
+                    } else {
+                        setDoc(masterRef, { running: false, startTS: null, lastRotTS: null });
+                    }
+                }, (err) => {
+                    window.stepLog('s-3', 'err', 'Fallo de Base de Datos');
+                    document.getElementById('diag-box').classList.remove('hidden');
+                    document.getElementById('diag-msg').innerText = "Reglas Firestore bloquean la lectura. Asegúrate de que las Reglas de Firebase estén en modo prueba o permitan lectura/escritura. Error: " + err.message;
+                });
+
+                // Apuntamos a tu colección "registros" que creaste en la Foto 9
+                const logsColl = collection(db, 'registros');
+                const q = query(logsColl, orderBy('ts', 'desc'));
+                onSnapshot(q, (snap) => { logs = snap.docs.map(d => d.data()); renderLogs(); });
+
+                // ASIGNAR EVENTOS A BOTONES
+                document.getElementById('btn-giro').onclick = async () => { if(st.running) await setDoc(masterRef, { ...st, lastRotTS: Date.now() }); };
+                document.getElementById('b-tgl').onclick = async () => { const r = !st.running; const now = Date.now(); await setDoc(masterRef, { runnin
