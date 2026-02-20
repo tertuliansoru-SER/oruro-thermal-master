@@ -1,77 +1,102 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OTM 120H - Oruro Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;700;900&display=swap');
+        :root { --bg: #020617; --lime: #a3e635; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; overscroll-behavior: none; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
+        .view.active { display: flex; }
+    </style>
+</head>
+<body>
+    <div id="loading-screen" class="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center p-6">
+        <div id="loader-icon" class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loading-msg" class="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500">Iniciando Sistema Oruro...</p>
+        <div id="error-ui" class="hidden mt-6 p-4 border border-red-500 rounded-2xl text-center">
+            <p id="error-txt" class="text-red-500 text-[10px] font-bold mb-4 uppercase"></p>
+            <button onclick="location.reload()" class="px-6 py-2 bg-red-600 text-white text-[10px] rounded-xl">Reintentar</button>
+        </div>
+    </div>
 
-    // Credenciales Reales de Oruro
-    const firebaseConfig = {
-        apiKey:            "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
-        authDomain:        "otm-120h-oruro.firebaseapp.com",
-        projectId:         "otm-120h-oruro",
-        storageBucket:     "otm-120h-oruro.firebasestorage.app",
-        messagingSenderId: "442199177770",
-        appId:             "1:442199177770:web:21770802ebef01a34c2153"
-    };
+    <div id="v-mon" class="view active p-4">
+        <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4">
+            <div>
+                <h1 class="text-2xl font-black uppercase">OTM <span class="text-lime-400">120H</span></h1>
+                <p id="net-status" class="text-[8px] font-bold text-red-500 uppercase mt-1">● OFFLINE</p>
+            </div>
+        </header>
+        <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4">
+            <div id="clk" class="mono text-6xl font-bold mb-2 tabular-nums">00:00:00</div>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Monitoreo</p>
+        </div>
+        <button onclick="f_nav('v-adm-login')" class="w-full mt-6 py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-800">🔒 Ingeniería (Admin)</button>
+    </div>
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const aid = 'otm-120h-oruro-final';
+    <div id="v-adm-login" class="view p-6 items-center justify-center bg-black">
+        <div class="w-full max-w-xs text-center space-y-6">
+            <h2 class="text-3xl font-black uppercase">Acceso <span class="text-lime-400">Jefe</span></h2>
+            <input type="password" id="a-pin" class="w-full p-8 rounded-[2.5rem] text-center text-5xl text-lime-400 font-bold outline-none border border-slate-800" placeholder="••••" inputmode="numeric">
+            <button onclick="f_pin()" class="w-full py-6 bg-lime-500 text-black font-black rounded-3xl uppercase text-xl">Entrar</button>
+            <button onclick="f_nav('v-mon')" class="text-slate-600 uppercase text-[10px]">Cancelar</button>
+        </div>
+    </div>
 
-    // Funciones de Diagnóstico
-    function setNetStatus(isOnline) {
-        const el = document.getElementById('net-status');
-        el.innerText = isOnline ? "● CONECTADO" : "● OFFLINE";
-        el.className = isOnline ? "text-[8px] font-bold text-lime-500 uppercase mt-1" : "text-[8px] font-bold text-red-500 uppercase mt-1";
-    }
+    <div id="v-adm" class="view p-4 bg-slate-950">
+        <header class="flex justify-between items-center mb-8">
+            <h2 class="text-lime-400 font-black uppercase text-sm">Control Maestro</h2>
+            <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] uppercase">Cerrar</button>
+        </header>
+        <button id="b-tgl" onclick="f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase shadow-2xl">INICIAR HORNADA</button>
+    </div>
 
-    function showDiag(msg) {
-        document.getElementById('loader-icon').classList.add('hidden');
-        document.getElementById('loading-msg').innerText = msg;
-        document.getElementById('error-ui').classList.remove('hidden');
-    }
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Inicio Secuencial (Boot)
-    async function boot() {
-        try {
-            await signInAnonymously(auth);
-            setNetStatus(true);
-            document.getElementById('loading-screen').classList.add('hidden');
-            startSync();
-        } catch (err) {
-            setNetStatus(false);
-            showDiag('Error de Autenticación: ' + err.code);
-        }
-    }
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
+            authDomain: "otm-120h-oruro.firebaseapp.com",
+            projectId: "otm-120h-oruro",
+            storageBucket: "otm-120h-oruro.firebasestorage.app",
+            messagingSenderId: "442199177770",
+            appId: "1:442199177770:web:21770802ebef01a34c2153"
+        };
 
-    function startSync() {
-        onSnapshot(doc(db, 'artifacts', aid, 'public', 'data', 'master'), (snap) => {
-            if(snap.exists()) {
-                window.st = snap.data();
-                updateUI();
-            } else {
-                setDoc(doc(db, 'artifacts', aid, 'public', 'data', 'master'), { 
-                    running: false, 
-                    startTS: null, 
-                    lastRotTS: null 
-                });
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const aid = 'otm-120h-oruro-final';
+
+        window.f_nav = (id) => {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        };
+
+        window.f_pin = () => {
+            if(document.getElementById('a-pin').value === "1407") {
+                document.getElementById('a-pin').value = '';
+                f_nav('v-adm');
+            } else { alert("PIN INCORRECTO"); }
+        };
+
+        async function boot() {
+            try {
+                await signInAnonymously(auth);
+                document.getElementById('net-status').innerText = "● CONECTADO";
+                document.getElementById('net-status').classList.replace('text-red-500', 'text-lime-500');
+                document.getElementById('loading-screen').classList.add('hidden');
+            } catch (err) {
+                document.getElementById('loading-msg').innerText = "Error: " + err.code;
             }
-        }, (err) => {
-            showDiag('Error de Sincronización: ' + err.code);
-        });
-    }
-
-    // Nuevo PIN numérico sugerido
-    window.f_pin = () => {
-        const pinInput = document.getElementById('a-pin').value;
-        if(pinInput === "1407") {
-            document.getElementById('a-pin').value = '';
-            f_nav('v-adm');
-        } else { 
-            alert("PIN INCORRECTO"); 
-            document.getElementById('a-pin').value = ''; 
         }
-    };
-
-    boot();
-</script>
+        boot();
+    </script>
+</body>
+</html>
