@@ -7,218 +7,153 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Inter:wght@400;700;900&display=swap');
-        
-        :root { 
-            --bg: #020617; 
-            --lime: #a3e635; 
-            --amber: #fbbf24; 
-            --red: #ef4444; 
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--bg); 
-            color: white; 
-            -webkit-tap-highlight-color: transparent; 
-            overscroll-behavior: none; 
-        }
-
+        :root { --bg: #020617; --lime: #a3e635; --amber: #fbbf24; --red: #ef4444; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        
         .view { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
         .view.active { display: flex; }
-
-        .led-active { 
-            animation: pulse 2s infinite; 
-            background-color: var(--lime); 
-        }
-
-        @keyframes pulse { 
-            0%, 100% { box-shadow: 0 0 5px var(--lime); } 
-            50% { box-shadow: 0 0 20px var(--lime); } 
-        }
-
-        input, select { 
-            font-size: 16px !important; 
-            background: #000 !important; 
-            color: white !important; 
-            border: 1px solid #334155 !important; 
-            border-radius: 0.75rem; 
-            padding: 0.75rem; 
-        }
-
+        .led-active { animation: pulse 2s infinite; background-color: var(--lime); }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px var(--lime); } 50% { box-shadow: 0 0 20px var(--lime); } }
+        input, select { font-size: 16px !important; background: #000 !important; color: white !important; border: 1px solid #334155 !important; border-radius: 0.75rem; padding: 0.75rem; }
         .btn-p:active { transform: scale(0.96); opacity: 0.8; }
-
-        /* Estilos del Teclado PIN Industrial */
-        .pin-dot { 
-            width: 16px; 
-            height: 16px; 
-            border-radius: 50%; 
-            background: #1e293b; 
-            border: 2px solid #334155; 
-            transition: all 0.15s; 
-        }
-        .pin-dot.filled { 
-            background: var(--lime); 
-            border-color: var(--lime); 
-            box-shadow: 0 0 8px #a3e63580; 
-        }
-        .pin-dot.error { 
-            background: var(--red); 
-            border-color: var(--red); 
-        }
-        .pin-key { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            height: 70px; 
-            border-radius: 1.2rem; 
-            background: #0f172a; 
-            border: 1px solid #1e293b; 
-            font-size: 1.5rem; 
-            font-weight: 900; 
-            transition: all 0.1s;
-        }
+        .pin-dot { width: 16px; height: 16px; border-radius: 50%; background: #1e293b; border: 2px solid #334155; transition: all 0.15s; }
+        .pin-dot.filled { background: var(--lime); border-color: var(--lime); box-shadow: 0 0 8px #a3e63580; }
+        .pin-dot.error { background: var(--red); border-color: var(--red); }
+        .pin-key { display: flex; align-items: center; justify-content: center; height: 70px; border-radius: 1.2rem; background: #0f172a; border: 1px solid #1e293b; font-size: 1.5rem; font-weight: 900; }
         .pin-key:active { background: #1e293b; transform: scale(0.92); }
     </style>
 </head>
 <body>
 
-    <!-- PANTALLA DE CARGA CON DIAGNÓSTICO -->
+    <!-- PANTALLA DE CARGA -->
     <div id="loading-screen" class="fixed inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
         <div id="loader-spinner" class="w-12 h-12 border-4 border-lime-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p id="loading-text" class="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500 italic">Sincronizando con Oruro...</p>
-        
-        <div id="diag-box" class="hidden mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-3xl max-w-xs text-center">
-            <p class="text-red-500 text-[10px] font-bold uppercase mb-2 italic">⚠️ Error de Conexión</p>
-            <p id="diag-msg" class="text-white text-[11px] mb-4 font-bold uppercase tracking-tight">Tiempo de espera agotado</p>
-            <button onclick="location.reload()" class="w-full py-3 bg-red-600 text-white text-[10px] font-bold uppercase rounded-xl btn-p">Reintentar</button>
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-lime-500 italic">Iniciando Servidores...</p>
+        <div id="diag-box" class="hidden mt-8 p-6 bg-red-900/20 border border-red-500/50 rounded-3xl max-w-xs">
+            <p class="text-red-500 text-[10px] font-bold mb-2 uppercase">⚠️ Error Crítico</p>
+            <p id="diag-msg" class="text-white text-[11px] font-bold uppercase mb-4"></p>
+            <button onclick="location.reload()" class="w-full py-3 bg-red-600 text-white text-[10px] font-bold uppercase rounded-xl">Reintentar</button>
         </div>
     </div>
 
-    <!-- VISTA 1: MONITOR PRINCIPAL -->
-    <div id="v-mon" class="view p-4 pb-12">
-        <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4 shadow-xl">
+    <!-- MONITOR -->
+    <div id="v-mon" class="view p-4 pb-12 active">
+        <header class="flex justify-between items-center bg-slate-900 p-5 rounded-3xl border border-slate-800 mb-4">
             <div>
-                <h1 class="text-2xl font-black italic tracking-tighter uppercase leading-none text-white">OTM <span class="text-lime-400">120H</span></h1>
-                <p id="net-status" class="text-[8px] font-bold text-slate-500 uppercase mt-1 tracking-widest italic">Conectando...</p>
+                <h1 class="text-2xl font-black italic uppercase leading-none text-white">OTM <span class="text-lime-400">120H</span></h1>
+                <p id="net-status" class="text-[8px] font-bold text-slate-500 uppercase mt-1 italic">Sincronizando...</p>
             </div>
             <div id="led" class="w-4 h-4 rounded-full bg-slate-700"></div>
         </header>
 
-        <!-- Alerta de Giro (Inching) -->
-        <div id="alt-inch" class="hidden mb-4 p-5 bg-amber-500 text-black rounded-3xl border-2 border-amber-400 text-center animate-bounce shadow-2xl">
-            <h2 class="text-xs font-black uppercase mb-1 italic text-black">⚠️ ¡GIRO DE 90° REQUERIDO! ⚠️</h2>
-            <div id="alt-inch-timer" class="mono text-2xl font-black mb-2">00:00</div>
-            <button onclick="f_giro()" class="w-full py-3 bg-black text-white font-black rounded-xl btn-p">Confirmar Giro</button>
+        <div id="alt-inch" class="hidden mb-4 p-5 bg-amber-500 text-black rounded-3xl border-2 border-amber-400 text-center animate-bounce">
+            <h2 class="text-xs font-black uppercase italic">⚠️ GIRO DE 90° REQUERIDO ⚠️</h2>
+            <div id="alt-inch-timer" class="mono text-2xl font-black">00:00</div>
+            <button onclick="f_giro()" class="w-full py-3 bg-black text-white font-black rounded-xl mt-2">Confirmar Giro</button>
         </div>
 
-        <!-- Reloj Maestro -->
-        <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 shadow-2xl relative overflow-hidden">
+        <div class="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-8 text-center mb-4 relative overflow-hidden">
             <div id="bar" class="absolute top-0 left-0 h-1.5 bg-lime-500 transition-all duration-1000" style="width: 0%"></div>
             <div id="clk" class="mono text-6xl font-bold text-white mb-2 tracking-tighter tabular-nums">00:00:00</div>
-            <div id="ph" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Sistema Pausado</div>
+            <div id="ph" class="text-[10px] font-black text-slate-500 uppercase italic">Standby</div>
         </div>
 
-        <!-- Métricas Principales -->
         <div class="grid grid-cols-2 gap-3 mb-4 text-center">
-            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
+            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800">
                 <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Interna (3.45x)</p>
                 <p id="t-int" class="text-4xl font-black text-lime-400 mono">--°C</p>
             </div>
-            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 shadow-lg">
+            <div class="bg-slate-900 p-5 rounded-[2rem] border border-slate-800">
                 <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Giro en</p>
                 <p id="inch-timer" class="text-4xl font-black text-orange-400 mono">--:--</p>
             </div>
         </div>
 
-        <!-- Gestión de Operador -->
-        <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4 shadow-xl">
+        <!-- OPERADOR -->
+        <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 mb-4">
             <div id="f-tur">
-                <input type="text" id="i-nom" class="w-full rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold outline-none" placeholder="NOMBRE OPERADOR">
+                <input type="text" id="i-nom" class="w-full rounded-xl px-4 py-3 text-sm mb-3 uppercase font-bold" placeholder="NOMBRE OPERADOR">
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <input type="time" id="i-hor" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
                     <select id="i-pun" class="w-full rounded-xl px-4 py-3 text-sm font-bold">
                         <option value="1">1ra Punta</option><option value="2">2da Punta</option><option value="3">3ra Punta</option>
                     </select>
                 </div>
-                <button onclick="f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p shadow-lg">Iniciar Turno</button>
+                <button onclick="f_tur_in()" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-sm btn-p">Iniciar Turno</button>
             </div>
             <div id="d-tur" class="hidden text-center">
-                <div class="bg-blue-600 rounded-2xl p-4 mb-3 shadow-lg">
-                    <p id="o-nom" class="text-lg font-black text-white uppercase tracking-tighter">--</p>
-                    <p id="o-inf" class="text-[10px] text-blue-100 uppercase mt-1 italic font-bold tracking-widest">--</p>
+                <div class="bg-blue-600 rounded-2xl p-4 mb-3">
+                    <p id="o-nom" class="text-lg font-black text-white uppercase">--</p>
+                    <p id="o-inf" class="text-[10px] text-blue-100 uppercase italic font-bold">--</p>
                 </div>
                 <button onclick="f_tur_out()" class="w-full py-2 bg-slate-800 text-slate-400 font-bold rounded-xl text-[10px] uppercase">Cerrar Turno</button>
             </div>
         </div>
 
-        <!-- Formulario de Registros -->
-        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none transition-all shadow-2xl">
+        <div id="sec-reg" class="bg-slate-900 rounded-[2.5rem] p-6 border border-slate-800 mb-4 opacity-30 pointer-events-none">
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1 italic uppercase tracking-tighter">Temp Carcasa</label>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Carcasa °C</label>
                     <input type="number" id="i-tem" class="w-full bg-transparent text-3xl font-black text-white text-center outline-none" placeholder="0">
                 </div>
                 <div class="bg-black p-4 rounded-3xl border border-slate-800 text-center">
-                    <label class="block text-[10px] font-bold text-sky-500 mb-1 italic uppercase tracking-tighter">Draft mmca</label>
+                    <label class="block text-[10px] font-bold text-sky-500 mb-1 uppercase">Draft mmca</label>
                     <input type="number" id="i-dra" step="0.1" class="w-full bg-transparent text-3xl font-black text-sky-400 text-center outline-none" placeholder="0.0">
                 </div>
             </div>
-            <button onclick="f_reg()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg btn-p shadow-xl">Guardar Lectura</button>
+            <button onclick="f_reg()" class="w-full py-6 bg-lime-600 text-black font-black rounded-3xl uppercase text-lg btn-p">Guardar Lectura</button>
         </div>
 
         <div class="grid grid-cols-2 gap-3 mb-6">
-            <button onclick="f_nav('v-log')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">Bitácora</button>
-            <button onclick="f_exp()" class="py-4 bg-slate-800 text-green-400 font-bold rounded-2xl uppercase text-[10px] border border-slate-700 btn-p">Exportar CSV</button>
+            <button onclick="f_nav('v-log')" class="py-4 bg-slate-800 text-blue-400 font-bold rounded-2xl uppercase text-[10px] btn-p">Bitácora</button>
+            <button onclick="f_exp()" class="py-4 bg-slate-800 text-green-400 font-bold rounded-2xl uppercase text-[10px] btn-p">Exportar CSV</button>
         </div>
 
-        <button onclick="f_nav('v-adm-login')" class="w-full py-4 bg-slate-900 text-slate-600 font-bold rounded-2xl text-[10px] uppercase border border-slate-800 mb-12 btn-p">🔒 Ingeniería (Admin)</button>
-
-        <footer class="mt-auto pt-8 border-t border-slate-900 text-center">
-            <p class="text-[10px] font-black text-slate-500 tracking-[0.5em] uppercase mb-1 italic">Proyecto OTM 120H</p>
-            <p class="text-[8px] font-bold text-slate-600 tracking-[0.3em] uppercase italic">Creada por Diego Solís</p>
+        <button onclick="f_nav('v-adm-login')" class="w-full py-4 text-slate-700 font-bold text-[10px] uppercase mb-12">🔒 Acceso Ingeniería</button>
+        
+        <footer class="text-center pb-8 opacity-40">
+            <p class="text-[8px] font-bold uppercase tracking-widest italic">Diego Solís - Oruro 2024</p>
         </footer>
     </div>
 
-    <!-- VISTA: LOGIN ADMIN (PIN 1407) -->
-    <div id="v-adm-login" class="view p-6 items-center justify-center bg-black text-center">
-        <h2 class="text-3xl font-black italic uppercase tracking-tighter text-white mb-8">Acceso <span class="text-lime-400">Jefe</span></h2>
+    <!-- LOGIN PIN -->
+    <div id="v-adm-login" class="view p-6 items-center justify-center bg-black">
+        <h2 class="text-2xl font-black uppercase text-white mb-8">PIN Maestro</h2>
         <div class="flex justify-center gap-6 mb-10">
             <div class="pin-dot" id="pd-0"></div><div class="pin-dot" id="pd-1"></div><div class="pin-dot" id="pd-2"></div><div class="pin-dot" id="pd-3"></div>
         </div>
-        <div class="grid grid-cols-3 gap-3 mb-8 w-full max-w-xs mx-auto">
+        <div class="grid grid-cols-3 gap-3 w-full max-w-xs mb-8">
             <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
             <button class="pin-key" onclick="pinKey('4')">4</button><button class="pin-key" onclick="pinKey('5')">5</button><button class="pin-key" onclick="pinKey('6')">6</button>
             <button class="pin-key" onclick="pinKey('7')">7</button><button class="pin-key" onclick="pinKey('8')">8</button><button class="pin-key" onclick="pinKey('9')">9</button>
-            <div class="pin-key bg-transparent border-none"></div><button class="pin-key" onclick="pinKey('0')">0</button><button class="pin-key text-red-500" onclick="pinDel()">⌫</button>
+            <div class="pin-key bg-transparent"></div><button class="pin-key" onclick="pinKey('0')">0</button><button class="pin-key text-red-500" onclick="pinDel()">⌫</button>
         </div>
-        <button onclick="f_nav('v-mon')" class="text-slate-600 font-bold uppercase text-[10px] tracking-widest italic font-bold">Cancelar</button>
+        <button onclick="f_nav('v-mon')" class="text-slate-500 uppercase text-[10px] font-bold">Volver</button>
     </div>
 
-    <!-- PANEL ADMIN MAESTRO -->
+    <!-- PANEL ADMIN -->
     <div id="v-adm" class="view p-4 bg-slate-950">
         <header class="flex justify-between items-center mb-8">
-            <h2 class="text-lime-400 font-black italic uppercase text-sm tracking-widest italic">Ingeniería Planta</h2>
-            <button onclick="f_nav('v-mon')" class="bg-red-900/30 text-red-500 px-5 py-2 rounded-xl text-[10px] font-bold uppercase font-black btn-p">Salir</button>
+            <h2 class="text-lime-400 font-black uppercase text-xs">Panel de Control</h2>
+            <button onclick="f_nav('v-mon')" class="text-red-500 text-[10px] font-bold uppercase">Cerrar</button>
         </header>
-        <div class="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-12 text-center mb-10 shadow-2xl w-full">
-            <div id="a-clk" class="mono text-5xl font-bold text-lime-400 mb-1 tracking-tighter tabular-nums">00:00:00</div>
-            <p id="a-st" class="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Sincronizando Estado...</p>
+        <div class="bg-slate-900 rounded-[2.5rem] p-12 text-center mb-10 shadow-2xl">
+            <div id="a-clk" class="mono text-5xl font-bold text-lime-400 mb-1">00:00:00</div>
+            <p class="text-[10px] font-black text-slate-500 uppercase">Tiempo Transcurrido</p>
         </div>
-        <button id="b-tgl" onclick="f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase btn-p shadow-2xl">CARGANDO...</button>
-        <button onclick="f_rst()" class="w-full mt-24 py-4 text-red-900 font-black text-[9px] uppercase tracking-[0.5em] opacity-30 italic font-bold">Reset Hornada Total</button>
+        <button id="b-tgl" onclick="f_tgl()" class="w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-4xl uppercase btn-p">Conectando...</button>
+        <button onclick="f_rst()" class="w-full mt-24 py-4 text-red-900 font-bold text-[8px] uppercase tracking-[0.5em] italic">Borrar Hornada Completa</button>
     </div>
 
-    <!-- BITÁCORA DE REGISTROS -->
+    <!-- BITÁCORA -->
     <div id="v-log" class="view p-4 bg-slate-950">
         <header class="flex justify-between items-center mb-4">
-            <h2 class="text-blue-400 font-black uppercase text-sm italic tracking-widest">Base de Datos</h2>
-            <button onclick="f_nav('v-mon')" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase font-black btn-p">Volver</button>
+            <h2 class="text-blue-400 font-black uppercase text-xs">Datos de Hornada</h2>
+            <button onclick="f_nav('v-mon')" class="text-white text-[10px] font-bold">VOLVER</button>
         </header>
         <div class="bg-slate-900 rounded-3xl border border-slate-800 flex-1 overflow-y-auto">
-            <table class="w-full text-xs text-left text-white/80">
-                <thead class="bg-slate-950 text-slate-500 uppercase text-[9px] sticky top-0">
+            <table class="w-full text-[10px] text-left">
+                <thead class="bg-slate-950 text-slate-500 uppercase sticky top-0">
                     <tr><th class="p-4">Reloj</th><th class="p-4">Operador</th><th class="p-4">Int°</th><th class="p-4">Draft</th></tr>
                 </thead>
                 <tbody id="t-body" class="mono divide-y divide-slate-800"></tbody>
@@ -231,17 +166,17 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, query, orderBy, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CREDENCIALES ---
         const firebaseConfig = {
-            apiKey:            "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
-            authDomain:        "otm-120h-oruro.firebaseapp.com",
-            projectId:         "otm-120h-oruro",
-            storageBucket:     "otm-120h-oruro.firebasestorage.app",
+            apiKey: "AIzaSyCzUxfhj2wGFXDXHrmqi7sYkCUOPMFanzQ",
+            authDomain: "otm-120h-oruro.firebaseapp.com",
+            projectId: "otm-120h-oruro",
+            storageBucket: "otm-120h-oruro.firebasestorage.app",
             messagingSenderId: "442199177770",
-            appId:             "1:442199177770:web:21770802ebef01a34c2153"
+            appId: "1:442199177770:web:21770802ebef01a34c2153"
         };
 
-        const AID = 'otm-120h-oruro-v3'; // Nueva versión de ruta para asegurar limpieza
+        // RUTA CORREGIDA (Segmentos pares para Documento)
+        const AID = 'otm-120h-oruro-v4'; 
         const app = initializeApp(firebaseConfig);
         const aut = getAuth(app);
         const db = getFirestore(app);
@@ -251,60 +186,27 @@
         let op = JSON.parse(localStorage.getItem('otm_op')) || null;
         let synced = false;
 
-        // --- LÓGICA PIN 1407 ---
-        let pinBuf = '';
-        window.pinKey = (d) => {
-            if (pinBuf.length >= 4) return;
-            pinBuf += d; renderDots();
-            if (pinBuf.length === 4) {
-                setTimeout(() => {
-                    if (pinBuf === '1407') { pinBuf = ''; renderDots(); f_nav('v-adm'); }
-                    else { 
-                        for (let i = 0; i < 4; i++) document.getElementById('pd-' + i).classList.add('error');
-                        setTimeout(() => { pinBuf = ''; renderDots(); for(let i=0;i<4;i++) document.getElementById('pd-'+i).classList.remove('error'); }, 700);
-                    }
-                }, 150);
-            }
-        };
-        window.pinDel = () => { pinBuf = pinBuf.slice(0,-1); renderDots(); };
-        function renderDots() { for (let i = 0; i < 4; i++) document.getElementById('pd-' + i).classList.toggle('filled', i < pinBuf.length); }
-
-        // --- ARRANQUE SECUENCIAL ---
         async function boot() {
-            // "Kill Switch" de 8 segundos para el spinner
-            const timeout = setTimeout(() => {
-                if(!synced) showDiag("No se pudo conectar a la base de datos. Verifica tus reglas de Firestore.");
-            }, 8000);
-
+            const timeout = setTimeout(() => { if(!synced) showDiag("Tiempo de espera agotado. Revisa la conexión."); }, 10000);
             try {
                 await signInAnonymously(aut);
-                const masterRef = doc(db, 'artifacts', AID, 'public', 'data', 'master');
+                // RUTA DE 6 SEGMENTOS: artifacts(1)/AID(2)/public(3)/data(4)/config(5)/master(6)
+                const masterRef = doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master');
                 
                 onSnapshot(masterRef, (snap) => {
                     clearTimeout(timeout);
                     if(snap.exists()) {
                         st = snap.data();
                         updateUI();
-                        if(!synced) { 
-                            document.getElementById('loading-screen').classList.add('hidden'); 
-                            synced = true; 
-                        }
+                        if(!synced) { document.getElementById('loading-screen').classList.add('hidden'); synced = true; }
                     } else {
-                        // Forzar creación si el documento es nuevo
                         setDoc(masterRef, { running: false, startTS: null, lastRotTS: null });
                     }
-                }, (err) => {
-                    clearTimeout(timeout);
-                    showDiag("Fallo en Firestore: " + err.message);
-                });
+                }, (err) => { showDiag(err.message); });
 
                 const q = query(collection(db, 'artifacts', AID, 'public', 'data', 'logs'), orderBy('ts', 'desc'));
                 onSnapshot(q, (snap) => { logs = snap.docs.map(d => d.data()); renderLogs(); });
-
-            } catch (err) {
-                clearTimeout(timeout);
-                showDiag("Fallo en Autenticación: " + err.message);
-            }
+            } catch (err) { showDiag(err.message); }
         }
 
         function showDiag(msg) {
@@ -313,11 +215,24 @@
             document.getElementById('diag-msg').innerText = msg;
         }
 
-        // --- FUNCIONES GLOBALES ---
+        // --- LÓGICA PIN ---
+        let pinBuf = '';
+        window.pinKey = (d) => {
+            if (pinBuf.length >= 4) return;
+            pinBuf += d; renderDots();
+            if (pinBuf.length === 4) {
+                setTimeout(() => {
+                    if (pinBuf === '1407') { pinBuf = ''; renderDots(); f_nav('v-adm'); }
+                    else { pinBuf = ''; renderDots(); }
+                }, 200);
+            }
+        };
+        window.pinDel = () => { pinBuf = pinBuf.slice(0,-1); renderDots(); };
+        function renderDots() { for (let i = 0; i < 4; i++) document.getElementById('pd-' + i).classList.toggle('filled', i < pinBuf.length); }
+
         window.f_nav = (id) => {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            window.scrollTo(0,0);
         };
 
         window.f_tur_in = () => {
@@ -333,29 +248,26 @@
         window.f_reg = async () => {
             const t = document.getElementById('i-tem').value;
             if(!t || !op || !st.running) return;
-            try {
-                await addDoc(collection(db, 'artifacts', AID, 'public', 'data', 'logs'), {
-                    ts: Date.now(),
-                    elapsed: Math.floor((Date.now() - st.startTS)/1000),
-                    op: op.nombre,
-                    int: Math.round(parseFloat(t) * 3.45),
-                    draft: parseFloat(document.getElementById('i-dra').value || 0),
-                    punta: op.punta
-                });
-                document.getElementById('i-tem').value = ''; 
-                document.getElementById('i-dra').value = '';
-            } catch(e) { console.error(e); }
+            await addDoc(collection(db, 'artifacts', AID, 'public', 'data', 'logs'), {
+                ts: Date.now(),
+                elapsed: Math.floor((Date.now() - st.startTS)/1000),
+                op: op.nombre,
+                int: Math.round(parseFloat(t) * 3.45),
+                draft: parseFloat(document.getElementById('i-dra').value || 0),
+                punta: op.punta
+            });
+            document.getElementById('i-tem').value = ''; document.getElementById('i-dra').value = '';
         };
 
         window.f_giro = async () => {
             if(!st.running) return;
-            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'master'), { ...st, lastRotTS: Date.now() });
+            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master'), { ...st, lastRotTS: Date.now() });
         };
 
         window.f_tgl = async () => {
             const r = !st.running;
             const now = Date.now();
-            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'master'), { 
+            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master'), { 
                 running: r, 
                 startTS: (r && !st.startTS) ? now : st.startTS,
                 lastRotTS: (r && !st.lastRotTS) ? now : st.lastRotTS 
@@ -363,8 +275,8 @@
         };
 
         window.f_rst = async () => {
-            if(!confirm("¿BORRAR TODO EL SISTEMA?")) return;
-            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'master'), { running: false, startTS: null, lastRotTS: null });
+            if(!confirm("¿BORRAR TODO?")) return;
+            await setDoc(doc(db, 'artifacts', AID, 'public', 'data', 'config', 'master'), { running: false, startTS: null, lastRotTS: null });
             const s = await getDocs(collection(db, 'artifacts', AID, 'public', 'data', 'logs'));
             for(const d of s.docs) await deleteDoc(d.ref);
             localStorage.clear(); location.reload();
@@ -372,25 +284,22 @@
 
         window.f_exp = () => {
             if(!logs.length) return;
-            const h = "Reloj;Operador;Punta;Temp_Int;Draft\n";
-            const b = logs.map(l => `${formatHMS(l.elapsed)};${l.op};${l.punta};${l.int};${l.draft}`).join("\n");
-            const blob = new Blob(["\uFEFF" + h + b], { type: 'text/csv' });
+            const h = "Reloj;Operador;Temp_Int;Draft\n";
+            const b = logs.map(l => `${formatHMS(l.elapsed)};${l.op};${l.int};${l.draft}`).join("\n");
             const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `OTM_ORURO_HORNADA.csv`; a.click();
+            a.href = URL.createObjectURL(new Blob(["\uFEFF" + h + b], { type: 'text/csv' }));
+            a.download = `OTM_ORURO.csv`; a.click();
         };
 
-        // --- RELOJES Y CUENTAS REGRESIVAS ---
         setInterval(() => {
             if(st.running && st.startTS) {
                 const s = Math.floor((Date.now() - st.startTS)/1000);
                 document.getElementById('clk').innerText = formatHMS(s);
                 document.getElementById('a-clk').innerText = formatHMS(s);
                 document.getElementById('bar').style.width = Math.min((s/432000)*100, 100) + '%';
-                
                 if(st.lastRotTS) {
                     const since = Math.floor((Date.now() - st.lastRotTS)/1000);
-                    const rem = Math.max(0, 7200 - since); // 2 Horas reglamentarias
+                    const rem = Math.max(0, 7200 - since);
                     document.getElementById('inch-timer').innerText = formatMS(rem);
                     document.getElementById('alt-inch-timer').innerText = formatMS(rem);
                     document.getElementById('alt-inch').classList.toggle('hidden', rem > 0);
@@ -404,50 +313,20 @@
             const l = document.getElementById('led');
             const b = document.getElementById('b-tgl');
             const ns = document.getElementById('net-status');
-            
             if(st.running) {
                 l.className = "w-4 h-4 rounded-full led-active";
-                b.innerText = "PAUSAR HORNADA"; 
-                b.className = "w-full py-20 rounded-[4rem] bg-zinc-900 text-zinc-600 font-black text-4xl uppercase btn-p border border-zinc-800 shadow-none";
+                b.innerText = "PAUSAR"; b.className = "w-full py-20 rounded-[4rem] bg-zinc-900 text-zinc-600 font-black text-4xl uppercase";
             } else {
-                l.className = "w-4 h-4 rounded-full bg-red-600 shadow-[0_0_10px_red]";
-                b.innerText = "INICIAR HORNADA"; 
-                b.className = "w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-5xl uppercase btn-p shadow-2xl shadow-lime-500/30";
-                document.getElementById('ph').innerText = "HORNADA DETENIDA";
+                l.className = "w-4 h-4 rounded-full bg-red-600";
+                b.innerText = "INICIAR"; b.className = "w-full py-20 rounded-[4rem] bg-lime-500 text-black font-black text-5xl uppercase";
             }
-            
             if(op) {
                 document.getElementById('f-tur').classList.add('hidden');
                 document.getElementById('d-tur').classList.remove('hidden');
                 document.getElementById('o-nom').innerText = op.nombre;
-                document.getElementById('o-inf').innerText = `Punta ${op.punta} | Ingreso: ${op.hora}`;
+                document.getElementById('o-inf').innerText = `Punta ${op.punta} | ${op.hora}`;
             } else {
                 document.getElementById('f-tur').classList.remove('hidden');
                 document.getElementById('d-tur').classList.add('hidden');
             }
-            
-            const active = st.running && op;
-            document.getElementById('sec-reg').style.opacity = active ? "1" : "0.3"; 
-            document.getElementById('sec-reg').style.pointerEvents = active ? "auto" : "none";
-            ns.innerText = "● ONLINE"; ns.style.color = "#a3e635";
-        }
-
-        function renderLogs() {
-            document.getElementById('t-body').innerHTML = logs.map(l => `
-                <tr class="border-b border-slate-900">
-                    <td class="p-4 text-slate-400 font-bold">${formatHMS(l.elapsed)}</td>
-                    <td class="p-4 font-bold uppercase text-white">${l.op}</td>
-                    <td class="p-4 text-lime-400 font-black">${l.int}°</td>
-                    <td class="p-4 text-sky-400 font-mono">${l.draft}</td>
-                </tr>
-            `).join('');
-            if(logs[0]) document.getElementById('t-int').innerText = logs[0].int + "°C";
-        }
-
-        const formatHMS = (s) => `${Math.floor(s/3600).toString().padStart(2,'0')}:${Math.floor((s%3600)/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-        const formatMS = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-
-        boot();
-    </script>
-</body>
-</html>
+            const active =
